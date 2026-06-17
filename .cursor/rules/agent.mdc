@@ -1,0 +1,15 @@
+---
+description: Learnpad agent rules — always follow when working in this repo
+alwaysApply: true
+---
+
+# Learnpad Agent Rules
+
+See `AGENT.md` in the repo root for the full rules. Summary:
+
+- Read `state/STATE.json`, `state/config.json`, `state/JOURNAL.md` (last ~30 lines), then execute `state/NEXT_PROMPT.md`.
+- Update `STATE.json`, append `JOURNAL.md`, write `NEXT_PROMPT.md` before ending each turn.
+- When blocked: add to `state/questions.json` + `QUESTIONS.md`, set `status: waiting_for_user`, pick a fallback task.
+- Self-improvising UI: append to `state/ui-blocks.json` or `app/generated/**` only — never edit core UI.
+- No secrets in repo. No paid actions without approval. Honor `state/STOP`.
+- Respect `config.self_prompting` — one step only when disabled.

@@ -1,0 +1,12 @@
+{
+  "self_prompting": true,
+  "self_prompting_recommended": true,
+  "model": "composer-2.5",
+  "question_timeout_hours": 4,
+  "wait_gate": {
+    "recheck_intervals_hours": [2, 4, 8, 12, 24]
+  },
+  "guardrails": {
+    "require_approval_for": ["spending", "paid_services"]
+  }
+}

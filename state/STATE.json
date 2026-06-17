@@ -1,0 +1,11 @@
+{
+  "phase": "discover",
+  "status": "idle",
+  "goal": "",
+  "agent_id": null,
+  "next_action": "Add API key in /setup",
+  "self_prompting": true,
+  "questions_pending": false,
+  "loop_count": 0,
+  "updated_at": "2026-06-17T08:06:16.988Z"
+}
