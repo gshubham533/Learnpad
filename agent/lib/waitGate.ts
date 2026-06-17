@@ -1,9 +1,30 @@
-import { readConfig, readQuestions, readState, writeState } from "./state";
+import {
+  readConfig,
+  readQuestions,
+  readState,
+  syncStateAfterQuestionsChange,
+  writeState,
+} from "./state";
+import {
+  countBlockingTasks,
+  hasBlockingUserInput,
+} from "./taskBlocking";
 
+/** @deprecated Use hasBlockingUserInput with workflow_mode instead. */
 export function hasPendingUserInput(
   questions: Awaited<ReturnType<typeof readQuestions>>
 ): boolean {
   return questions.pending.some((q) => q.kind === "user_input");
+}
+
+export async function getWorkflowMode() {
+  const config = await readConfig();
+  return config.workflow_mode;
+}
+
+export async function hasBlockingInput(): Promise<boolean> {
+  const [questions, config] = await Promise.all([readQuestions(), readConfig()]);
+  return hasBlockingUserInput(questions, config.workflow_mode);
 }
 
 export async function getWaitIntervalMs(): Promise<number | null> {
@@ -11,7 +32,7 @@ export async function getWaitIntervalMs(): Promise<number | null> {
   if (state.status !== "waiting_for_user") return null;
 
   const questions = await readQuestions();
-  if (questions.pending.length === 0) return null;
+  if (!hasBlockingUserInput(questions, config.workflow_mode)) return null;
 
   const intervals = config.wait_gate.recheck_intervals_hours;
   const loopIndex = Math.min(state.loop_count, intervals.length - 1);
@@ -28,7 +49,10 @@ export async function shouldAutoDecide(): Promise<boolean> {
   if (state.status !== "waiting_for_user") return false;
 
   const questions = await readQuestions();
-  const oldest = questions.pending[0];
+  const blocking = questions.pending.filter((q) =>
+    hasBlockingUserInput({ pending: [q], resolved: [] }, config.workflow_mode)
+  );
+  const oldest = blocking[0] ?? questions.pending[0];
   if (!oldest) return false;
 
   const timeoutMs = config.question_timeout_hours * 60 * 60 * 1000;
@@ -37,30 +61,31 @@ export async function shouldAutoDecide(): Promise<boolean> {
 }
 
 export async function applyAutoDecide() {
-  const questions = await readQuestions();
-  const pending = questions.pending[0];
+  const [questions, config] = await Promise.all([readQuestions(), readConfig()]);
+  const blockingIdx = questions.pending.findIndex((q) =>
+    hasBlockingUserInput({ pending: [q], resolved: [] }, config.workflow_mode)
+  );
+  const idx = blockingIdx >= 0 ? blockingIdx : 0;
+  const pending = questions.pending[idx];
   if (!pending) return;
 
   const fallback = pending.options[pending.options.length - 1] ?? "your call";
   pending.answer = `[auto-decided after timeout] ${fallback}`;
 
-  await import("./state").then(({ writeQuestions }) =>
-    writeQuestions({
-      pending: questions.pending.slice(1),
-      resolved: [...questions.resolved, pending],
-    })
-  );
+  const remaining = questions.pending.filter((_, i) => i !== idx);
 
-  await writeState({
-    status: "running",
-    questions_pending: questions.pending.length > 1,
-  });
+  await import("./state").then(({ writeQuestions, syncStateAfterQuestionsChange }) =>
+    writeQuestions({
+      pending: remaining,
+      resolved: [...questions.resolved, pending],
+    }).then(() => syncStateAfterQuestionsChange())
+  );
 }
 
-/** Block the loop until the user answers pending user_input tasks. */
-export async function syncUserInputWaitState(): Promise<void> {
-  const questions = await readQuestions();
-  if (!hasPendingUserInput(questions)) return;
+/** Block the loop only when critical/action_required tasks are pending. */
+export async function syncBlockingWaitState(): Promise<void> {
+  const [questions, config] = await Promise.all([readQuestions(), readConfig()]);
+  if (!hasBlockingUserInput(questions, config.workflow_mode)) return;
 
   await writeState({
     status: "waiting_for_user",

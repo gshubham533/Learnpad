@@ -114,7 +114,7 @@ export default function SetupPage() {
 
   async function saveGoal() {
     if (!goal.trim()) {
-      toast.error("Please describe what you want to build or learn");
+      toast.error("Please describe what you want to achieve");
       return;
     }
     setLoading(true);
@@ -212,7 +212,7 @@ export default function SetupPage() {
       {step === "goal" && (
         <Card>
           <CardHeader>
-            <CardTitle>What do you want to build or learn?</CardTitle>
+            <CardTitle>What do you want to achieve?</CardTitle>
             <CardDescription>
               Describe your project in plain language. The agent will take it from here.
             </CardDescription>
@@ -224,7 +224,7 @@ export default function SetupPage() {
               </p>
             )}
             <Textarea
-              placeholder="e.g. A simple todo app to learn React…"
+              placeholder="e.g. Launch my SaaS MVP, ship a client discovery kit, build a todo app from scratch…"
               value={goal}
               onChange={(e) => setGoal(e.target.value)}
               rows={4}

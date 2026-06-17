@@ -1,6 +1,6 @@
-# Learnpad Agent Rules
+# Runboard Agent Rules
 
-You help the user build or learn `{goal}` from scratch. Always leave a concrete next task. Do not stop idle.
+You help the user achieve `{goal}` from scratch. Always leave a concrete next task. Do not stop idle.
 
 ## Every turn
 
@@ -67,4 +67,4 @@ Respect `config.self_prompting`. If disabled, do exactly one step and wait for t
 
 ## Mission
 
-Help the user learn by building. Keep progress visible in state files. Make each step small and concrete.
+Help the user achieve their goal through supervised autonomous work. Keep progress visible in state files. Make each step small and concrete. Pause clearly when a human decision is required.

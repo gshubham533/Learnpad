@@ -57,7 +57,7 @@ export function DashboardSection() {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
-              Start the agent from the chat quick actions. Progress will show up here as you build.
+              Start the agent from the chat quick actions. Progress will show up here as you work toward your goal.
             </p>
           </CardContent>
         </Card>

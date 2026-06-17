@@ -173,7 +173,7 @@ export default function SettingsPage() {
             </label>
             <Textarea
               id="goal"
-              placeholder="What do you want to build or learn?"
+              placeholder="What do you want to achieve?"
               value={goal}
               onChange={(e) => setGoal(e.target.value)}
               rows={3}

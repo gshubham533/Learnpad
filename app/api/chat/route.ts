@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import fs from "fs/promises";
 import { Agent, CursorAgentError } from "@cursor/sdk";
 import { buildChatPrompt, readLoopContext } from "@/agent/lib/chatContext";
+import { tryResolveTasksFromChat } from "@/agent/lib/taskResolve";
 import { buildAgentOptions, buildSendOptions } from "@/agent/lib/sdkAgent";
 import { consumeSdkStream, logStreamEvent } from "@/agent/lib/streamLog";
 import {
@@ -53,10 +54,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "API key not configured" }, { status: 400 });
   }
 
-  const [config, appState, loopContext] = await Promise.all([
+  const [config, appState] = await Promise.all([
     readConfig(),
     readState(),
-    readLoopContext(),
   ]);
 
   const chats = await readChats();
@@ -89,6 +89,18 @@ export async function POST(request: Request) {
     { type: "user", text: prompt }
   );
 
+  const resolvedFromChat = await tryResolveTasksFromChat(prompt);
+  if (resolvedFromChat.length > 0) {
+    await logStreamEvent(
+      { source: "chat", chatId: session.id },
+      {
+        type: "status",
+        text: `Resolved task(s) from chat: ${resolvedFromChat.join(", ")}`,
+      }
+    );
+  }
+
+  const loopContext = await readLoopContext();
   const loopAgentId = appState.agent_id;
   const resumeAgentId = loopAgentId ?? session.agent_id;
   const fullPrompt = buildChatPrompt(prompt, loopContext);

@@ -10,8 +10,8 @@ import { cn } from "@/lib/utils";
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
-  title: "Learnpad",
-  description: "A launchpad for learning by building",
+  title: "Runboard",
+  description: "Describe a goal. Supervise an agent that keeps going.",
 };
 
 export const dynamic = "force-dynamic";

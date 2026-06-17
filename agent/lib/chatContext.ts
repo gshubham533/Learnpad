@@ -50,7 +50,7 @@ export function buildChatPrompt(userMessage: string, ctx: LoopContext): string {
       ? `\nIMPORTANT: The build loop is waiting for the user. Tell them to open **Your tasks** at /tasks to answer. Include the link /tasks in your reply.`
       : "";
 
-  return `[Learnpad — you are connected to the autonomous build loop. Answer the user about what the agent is doing, progress, blockers, and next steps. Use the context below. Be concise and friendly.${waitingNote}]
+  return `[Runboard — you are connected to the supervised build loop. Answer the user about what the agent is doing, progress, blockers, and next steps. Use the context below. Be concise and friendly.${waitingNote}]
 
 ## Loop context
 - Goal: ${ctx.goal || "(not set)"}

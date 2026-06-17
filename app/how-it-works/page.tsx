@@ -12,15 +12,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 const IDEA_CARDS = [
   {
     icon: Bot,
-    title: "Fully autonomous agent",
+    title: "Supervised autonomous agent",
     description:
       "Click Start and the agent works in the background. It reads your goal, plans small steps, writes code and docs, and pauses when it needs your input.",
   },
   {
     icon: Sparkles,
-    title: "Dynamic application",
+    title: "Dashboard that grows with your project",
     description:
-      "The app evolves with your project. New dashboard blocks and pages appear as the agent builds — tailored to what you're working on.",
+      "New dashboard blocks and pages appear as the agent works — tailored to what you're achieving.",
   },
   {
     icon: FileText,
@@ -34,7 +34,7 @@ const USAGE_STEPS = [
   {
     step: 1,
     title: "Complete Setup",
-    description: "Enter your name, Cursor API key, and describe what you want to build or learn.",
+    description: "Enter your name, Cursor API key, and describe what you want to achieve.",
     href: "/setup",
   },
   {
@@ -123,13 +123,14 @@ export default function HowItWorksPage() {
     <div className="space-y-8">
       <div>
         <Badge className="mb-2" variant="secondary">
-          A launchpad for learning by building
+          Open cockpit for goal-driven agent projects
         </Badge>
-        <h1 className="text-2xl font-bold">How Learnpad works</h1>
+        <h1 className="text-2xl font-bold">How Runboard works</h1>
         <p className="mt-2 max-w-2xl text-muted-foreground">
-          Learnpad started as a way to learn by building — not just reading docs. Describe
-          what you want to create in plain language, and a fully autonomous AI agent works
-          toward it while you watch, chat, and answer questions along the way.
+          Runboard is a stateful agent workspace for long-horizon projects — ship an MVP,
+          run a launch, or drive a multi-week initiative. Describe what you want to achieve
+          in plain language, and a supervised agent works toward it while you watch, chat,
+          and answer when it needs a decision.
         </p>
       </div>
 
@@ -151,7 +152,7 @@ export default function HowItWorksPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>How to use Learnpad</CardTitle>
+          <CardTitle>How to use Runboard</CardTitle>
         </CardHeader>
         <CardContent>
           <ol className="space-y-4">

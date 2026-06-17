@@ -1,9 +1,9 @@
 ---
-description: Learnpad agent rules — always follow when working in this repo
+description: Runboard agent rules — always follow when working in this repo
 alwaysApply: true
 ---
 
-# Learnpad Agent Rules
+# Runboard Agent Rules
 
 See `AGENT.md` in the repo root for the full rules. Summary:
 

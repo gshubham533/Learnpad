@@ -297,7 +297,9 @@ export async function runStallWatchdog(): Promise<AgentHealthResult> {
         ? "external_wait"
         : first.kind === "system_error"
           ? "system_error"
-          : "user_input";
+          : first.kind === "action_required"
+            ? "user_input"
+            : "user_input";
 
     pause = await writeAgentPause({
       kind,

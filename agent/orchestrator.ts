@@ -159,7 +159,7 @@ async function runOnce(): Promise<boolean> {
 }
 
 async function main() {
-  console.log("[agent] Learnpad orchestrator starting", once ? "(once)" : "(loop)");
+  console.log("[agent] Runboard orchestrator starting", once ? "(once)" : "(loop)");
 
   try {
     if (once) {

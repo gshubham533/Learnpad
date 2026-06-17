@@ -16,7 +16,7 @@ export function HomeHeader({ onOpenSessions }: { onOpenSessions: () => void }) {
         <Button variant="ghost" size="icon-sm" onClick={onOpenSessions} aria-label="Chat history">
           <History className="size-4" />
         </Button>
-        <span className="font-semibold tracking-tight">Learnpad</span>
+        <span className="font-semibold tracking-tight">Runboard</span>
       </div>
       <div className="flex items-center gap-1">
         {n.tasks > 0 && (

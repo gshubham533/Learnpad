@@ -7,9 +7,8 @@ import { MarkdownContent } from "@/components/MarkdownContent";
 export function ChatLoopBanner({ loop }: { loop: LoopContext | null }) {
   if (!loop) return null;
 
-  const hasTasks = loop.pending_tasks.length > 0;
-  const waiting =
-    loop.status === "waiting_for_user" || loop.questions_pending || hasTasks;
+  const blocking = loop.blocking_task_count > 0;
+  const optional = loop.optional_task_count > 0;
 
   return (
     <div className="space-y-2">
@@ -31,14 +30,31 @@ export function ChatLoopBanner({ loop }: { loop: LoopContext | null }) {
         </Link>
       </div>
 
-      {waiting && (
+      {blocking && (
         <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">
-          <strong>Your input is needed.</strong>{" "}
-          {hasTasks
-            ? `${loop.pending_tasks.length} task(s) waiting.`
-            : "The agent is paused until you respond."}{" "}
+          <strong>Action required.</strong>{" "}
+          {loop.blocking_task_count} blocking task(s) — the agent is paused until you respond.{" "}
           <Link href="/tasks" className="font-medium text-primary underline">
             Go to Your tasks →
+          </Link>
+        </div>
+      )}
+
+      {!blocking && optional && (
+        <div className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+          <strong className="text-foreground">Optional tasks available.</strong>{" "}
+          {loop.optional_task_count} preference/setup task(s) — the agent keeps building.{" "}
+          <Link href="/tasks" className="font-medium text-primary underline">
+            Answer when ready →
+          </Link>
+        </div>
+      )}
+
+      {!blocking && !optional && loop.status === "waiting_for_user" && (
+        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">
+          <strong>The agent is paused.</strong>{" "}
+          <Link href="/tasks" className="font-medium text-primary underline">
+            Check Your tasks →
           </Link>
         </div>
       )}

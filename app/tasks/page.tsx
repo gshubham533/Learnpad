@@ -1,14 +1,23 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { Questions } from "@/agent/lib/schemas";
+import type { Questions, WorkflowMode } from "@/agent/lib/schemas";
 import { AgentStatusPanel } from "@/components/tasks/AgentStatusPanel";
-import { TaskCard } from "@/components/tasks/TaskCard";
+import { TaskListWithBulk } from "@/components/tasks/BulkTaskChecklist";
 import { MarkdownContent } from "@/components/MarkdownContent";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 
+type QuestionsResponse = Questions & {
+  meta?: {
+    blocking: number;
+    optional: number;
+    workflow_mode: WorkflowMode;
+  };
+};
+
 export default function TasksPage() {
-  const [data, setData] = useState<Questions>({ pending: [], resolved: [] });
+  const [data, setData] = useState<QuestionsResponse>({ pending: [], resolved: [] });
   const [showDone, setShowDone] = useState(false);
 
   const load = useCallback(async () => {
@@ -22,6 +31,9 @@ export default function TasksPage() {
     return () => clearInterval(interval);
   }, [load]);
 
+  const blocking = data.meta?.blocking ?? 0;
+  const optional = data.meta?.optional ?? 0;
+
   return (
     <div className="space-y-6">
       <div>
@@ -29,6 +41,16 @@ export default function TasksPage() {
         <p className="text-muted-foreground">
           See why the agent paused and what it needs to continue.
         </p>
+        {data.pending.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {blocking > 0 && (
+              <Badge variant="destructive">{blocking} blocking</Badge>
+            )}
+            {optional > 0 && (
+              <Badge variant="secondary">{optional} optional</Badge>
+            )}
+          </div>
+        )}
       </div>
 
       <AgentStatusPanel />
@@ -43,9 +65,7 @@ export default function TasksPage() {
             </CardContent>
           </Card>
         ) : (
-          data.pending.map((task) => (
-            <TaskCard key={task.id} task={task} onAnswered={load} />
-          ))
+          <TaskListWithBulk tasks={data.pending} onAnswered={load} />
         )}
       </section>
 

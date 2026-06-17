@@ -14,6 +14,8 @@ export const PATHS = {
   chats: path.join(REPO_ROOT, "state", "chats.json"),
   chatsDir: path.join(REPO_ROOT, "state", "chats"),
   profitPlan: path.join(REPO_ROOT, "state", "profit-plan.json"),
+  backlog: path.join(REPO_ROOT, "state", "backlog.json"),
+  blueprint: path.join(REPO_ROOT, "state", "product", "blueprint.md"),
   product: path.join(REPO_ROOT, "state", "product"),
   resources: path.join(REPO_ROOT, "state", "resources"),
   resourceChangelog: path.join(REPO_ROOT, "state", "resource-changelog.json"),

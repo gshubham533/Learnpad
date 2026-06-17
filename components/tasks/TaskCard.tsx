@@ -16,6 +16,8 @@ type TaskItem = Questions["pending"][number];
 
 function kindLabel(kind: TaskKind) {
   switch (kind) {
+    case "action_required":
+      return "Action required";
     case "external_wait":
       return "External wait";
     case "system_error":
@@ -24,6 +26,30 @@ function kindLabel(kind: TaskKind) {
       return "Stuck";
     default:
       return "Your input";
+  }
+}
+
+function priorityLabel(priority: TaskItem["priority"]) {
+  switch (priority) {
+    case "critical":
+      return "Critical";
+    case "deferred":
+      return "Deferred";
+    default:
+      return "Optional";
+  }
+}
+
+function priorityVariant(
+  priority: TaskItem["priority"]
+): "default" | "secondary" | "destructive" | "outline" {
+  switch (priority) {
+    case "critical":
+      return "destructive";
+    case "deferred":
+      return "outline";
+    default:
+      return "secondary";
   }
 }
 
@@ -89,6 +115,9 @@ export function TaskCard({
       <CardHeader className="pb-2">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant={kindVariant(task.kind)}>{kindLabel(task.kind)}</Badge>
+          <Badge variant={priorityVariant(task.priority)}>
+            {priorityLabel(task.priority)}
+          </Badge>
           <CardTitle className="text-base">{task.id}</CardTitle>
         </div>
       </CardHeader>

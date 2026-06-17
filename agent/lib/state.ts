@@ -134,7 +134,7 @@ export async function readJournal(): Promise<string> {
   try {
     return await fs.readFile(PATHS.journal, "utf-8");
   } catch {
-    return "# Learnpad Journal\n";
+    return "# Runboard Journal\n";
   }
 }
 
@@ -353,7 +353,7 @@ export async function resetAllData() {
   await writeJsonFile(PATHS.uiBlocks, { blocks: [] });
   await writeChats({ sessions: [] });
   await clearDirectory(PATHS.chatsDir);
-  await fs.writeFile(PATHS.journal, "# Learnpad Journal\n", "utf-8");
+  await fs.writeFile(PATHS.journal, "# Runboard Journal\n", "utf-8");
   await writeNextPrompt("# Next Task\n\nRun setup wizard.\n");
   await clearAgentPause();
   await removePath(PATHS.live);

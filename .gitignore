@@ -33,7 +33,7 @@ prd.txt
 .env*
 secrets.local.json
 
-# learnpad user / runtime data (local only — do not commit)
+# runboard user / runtime data (local only — do not commit)
 state/*
 !state/resources/
 !state/product/

@@ -37,7 +37,7 @@ export function ActionBanner() {
   const [dismissedTotal, setDismissedTotal] = useState<number | null>(null);
 
   useEffect(() => {
-    const stored = sessionStorage.getItem("learnpad-banner-dismissed");
+    const stored = sessionStorage.getItem("runboard-banner-dismissed");
     if (stored) setDismissedTotal(parseInt(stored, 10));
   }, []);
 
@@ -48,7 +48,7 @@ export function ActionBanner() {
   if (!msg) return null;
 
   function dismiss() {
-    sessionStorage.setItem("learnpad-banner-dismissed", String(notifications.total));
+    sessionStorage.setItem("runboard-banner-dismissed", String(notifications.total));
     setDismissedTotal(notifications.total);
   }
 
