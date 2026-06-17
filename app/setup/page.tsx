@@ -134,7 +134,7 @@ export default function SetupPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ goal: goal.trim() }),
       });
-      toast.success("You're all set! Start chatting on the home page.");
+      toast.success("You're all set! Open Activity to start the agent.");
       router.push("/");
     } catch {
       toast.error("Failed to save goal");

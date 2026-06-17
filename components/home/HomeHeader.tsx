@@ -21,7 +21,7 @@ export function HomeHeader({ onOpenSessions }: { onOpenSessions: () => void }) {
       <div className="flex items-center gap-1">
         {n.tasks > 0 && (
           <Link
-            href="/tasks"
+            href="/activity#tasks"
             aria-label="Your tasks"
             className="relative inline-flex size-7 items-center justify-center rounded-lg hover:bg-muted"
           >

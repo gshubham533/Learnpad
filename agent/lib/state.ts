@@ -15,7 +15,10 @@ import {
   SecretsSchema,
   StreamEvent,
   StreamEventSchema,
+  BacklogSchema,
+  type Backlog,
 } from "./schemas";
+import { countBlockingTasks } from "./taskBlocking";
 
 async function ensureDir(filePath: string) {
   await fs.mkdir(path.dirname(filePath), { recursive: true });
@@ -74,6 +77,75 @@ export async function writeQuestions(data: Questions) {
   await writeJsonFile(PATHS.questions, next);
   await syncQuestionsMd(next);
   return next;
+}
+
+export async function resolveQuestion(id: string, answer: string): Promise<boolean> {
+  const data = await readQuestions();
+  const idx = data.pending.findIndex((q) => q.id === id);
+  if (idx === -1) return false;
+
+  const item = { ...data.pending[idx], answer };
+  await writeQuestions({
+    pending: data.pending.filter((q) => q.id !== id),
+    resolved: [...data.resolved, item],
+  });
+  await syncStateAfterQuestionsChange();
+  return true;
+}
+
+export async function syncStateAfterQuestionsChange() {
+  const [questions, config] = await Promise.all([readQuestions(), readConfig()]);
+  const { blocking } = countBlockingTasks(questions, config.workflow_mode);
+
+  if (blocking > 0) {
+    await writeState({
+      status: "waiting_for_user",
+      questions_pending: true,
+    });
+    return;
+  }
+
+  const partial: Partial<AppState> = {
+    questions_pending: questions.pending.length > 0,
+  };
+  if (questions.pending.length === 0) {
+    partial.status = "idle";
+  }
+  await writeState(partial);
+
+  if (questions.pending.length === 0) {
+    await clearAgentPause();
+  }
+}
+
+export async function readBacklog() {
+  return readJsonFile(PATHS.backlog, BacklogSchema, { items: [] });
+}
+
+export async function writeBacklog(data: Backlog) {
+  const next = BacklogSchema.parse(data);
+  await writeJsonFile(PATHS.backlog, next);
+  return next;
+}
+
+export async function readBlueprint(): Promise<string | null> {
+  try {
+    return await fs.readFile(PATHS.blueprint, "utf-8");
+  } catch {
+    return null;
+  }
+}
+
+export async function syncNextPromptFromBacklog() {
+  const [state, backlog] = await Promise.all([readState(), readBacklog()]);
+  if (state.phase !== "build") return;
+
+  const next = backlog.items.find((i) => i.status === "pending");
+  if (!next) return;
+
+  await writeNextPrompt(
+    `# ${next.title}\n\nBacklog item: \`${next.id}\`\n\n${next.detail ?? next.title}\n`
+  );
 }
 
 export async function readAgentPause(): Promise<AgentPause> {
@@ -362,6 +434,8 @@ export async function resetAllData() {
   await clearDirectory(PATHS.product);
   await clearDirectory(PATHS.resources);
   await clearDirectory(PATHS.generated);
+  await removePath(PATHS.userInbox);
+  await removePath(PATHS.apps);
   await clearPid();
   await clearStop();
 }

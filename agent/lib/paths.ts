@@ -24,6 +24,8 @@ export const PATHS = {
   agentPid: path.join(REPO_ROOT, "state", "agent.pid"),
   live: path.join(REPO_ROOT, "state", "live.jsonl"),
   agentPause: path.join(REPO_ROOT, "state", "agent-pause.json"),
+  userInbox: path.join(REPO_ROOT, "state", "user-inbox.json"),
+  apps: path.join(REPO_ROOT, "state", "apps.json"),
   autoRestart: path.join(REPO_ROOT, "state", "auto-restart.json"),
   secrets: path.join(REPO_ROOT, "secrets.local.json"),
   agentMd: path.join(REPO_ROOT, "AGENT.md"),

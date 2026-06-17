@@ -11,7 +11,7 @@ function bannerMessage(n: Notifications): { text: string; href: string; label: s
         n.tasks === 1
           ? "You have 1 task waiting."
           : `You have ${n.tasks} tasks waiting.`,
-      href: "/tasks",
+      href: "/activity#tasks",
       label: "Go to Your tasks",
     };
   }

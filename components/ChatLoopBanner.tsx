@@ -34,7 +34,7 @@ export function ChatLoopBanner({ loop }: { loop: LoopContext | null }) {
         <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">
           <strong>Action required.</strong>{" "}
           {loop.blocking_task_count} blocking task(s) — the agent is paused until you respond.{" "}
-          <Link href="/tasks" className="font-medium text-primary underline">
+          <Link href="/activity#tasks" className="font-medium text-primary underline">
             Go to Your tasks →
           </Link>
         </div>
@@ -44,7 +44,7 @@ export function ChatLoopBanner({ loop }: { loop: LoopContext | null }) {
         <div className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
           <strong className="text-foreground">Optional tasks available.</strong>{" "}
           {loop.optional_task_count} preference/setup task(s) — the agent keeps building.{" "}
-          <Link href="/tasks" className="font-medium text-primary underline">
+          <Link href="/activity#tasks" className="font-medium text-primary underline">
             Answer when ready →
           </Link>
         </div>
@@ -53,7 +53,7 @@ export function ChatLoopBanner({ loop }: { loop: LoopContext | null }) {
       {!blocking && !optional && loop.status === "waiting_for_user" && (
         <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">
           <strong>The agent is paused.</strong>{" "}
-          <Link href="/tasks" className="font-medium text-primary underline">
+          <Link href="/activity#tasks" className="font-medium text-primary underline">
             Check Your tasks →
           </Link>
         </div>

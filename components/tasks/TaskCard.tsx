@@ -1,16 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { Pencil } from "lucide-react";
 import { toast } from "sonner";
 import type { Questions, TaskKind } from "@/agent/lib/schemas";
-import { resourceEditUrl } from "@/lib/resource-url";
+import { TaskFileUpload } from "@/components/tasks/TaskFileUpload";
+import { MarkdownWithFileRefs } from "@/components/activity/MarkdownWithFileRefs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { MarkdownContent } from "@/components/MarkdownContent";
 
 type TaskItem = Questions["pending"][number];
 
@@ -65,6 +64,11 @@ function kindVariant(kind: TaskKind): "default" | "secondary" | "destructive" | 
   }
 }
 
+function taskTitle(question: string) {
+  const line = question.split("\n")[0]?.replace(/[#*_`]/g, "").trim() ?? "";
+  return line.length > 80 ? `${line.slice(0, 77)}…` : line || "Task";
+}
+
 function isRestartAnswer(text: string) {
   return /restart/i.test(text);
 }
@@ -72,9 +76,11 @@ function isRestartAnswer(text: string) {
 export function TaskCard({
   task,
   onAnswered,
+  onFileSelect,
 }: {
   task: TaskItem;
   onAnswered: () => void;
+  onFileSelect?: (path: string) => void;
 }) {
   const [customAnswer, setCustomAnswer] = useState("");
   const [loading, setLoading] = useState(false);
@@ -109,6 +115,7 @@ export function TaskCard({
   }
 
   const showRestartPrimary = task.kind === "stuck" || task.kind === "system_error";
+  const title = taskTitle(task.question);
 
   return (
     <Card>
@@ -118,49 +125,73 @@ export function TaskCard({
           <Badge variant={priorityVariant(task.priority)}>
             {priorityLabel(task.priority)}
           </Badge>
-          <CardTitle className="text-base">{task.id}</CardTitle>
         </div>
+        <CardTitle className="text-base">{title}</CardTitle>
+        <p className="text-xs text-muted-foreground">{task.id}</p>
       </CardHeader>
       <CardContent className="space-y-4">
-        <MarkdownContent content={task.question} />
+        {onFileSelect ? (
+          <MarkdownWithFileRefs content={task.question} onFileSelect={onFileSelect} />
+        ) : (
+          <MarkdownWithFileRefs content={task.question} />
+        )}
 
         {task.context && (
           <div className="text-sm text-muted-foreground">
             <span className="font-medium text-foreground">Why: </span>
-            <MarkdownContent content={task.context} compact className="mt-1" />
+            <MarkdownWithFileRefs
+              content={task.context}
+              compact
+              className="mt-1"
+              onFileSelect={onFileSelect}
+            />
           </div>
         )}
 
         {task.unblocks && (
           <div className="rounded-md bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
             <span className="font-medium text-foreground">Then: </span>
-            <MarkdownContent content={task.unblocks} compact className="mt-1" />
+            <MarkdownWithFileRefs
+              content={task.unblocks}
+              compact
+              className="mt-1"
+              onFileSelect={onFileSelect}
+            />
           </div>
         )}
 
         {task.edit_files && task.edit_files.length > 0 && (
           <div className="space-y-2">
-            <p className="text-sm font-medium">Edit files</p>
+            <p className="text-sm font-medium">Related files</p>
             <div className="flex flex-wrap gap-2">
-              {task.edit_files.map((file) => (
-                <Link
-                  key={file.path}
-                  href={resourceEditUrl(file.path)}
-                  className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-3 text-sm font-medium hover:bg-accent"
-                >
-                  <Pencil className="size-3.5" />
-                  {file.label}
-                </Link>
-              ))}
+              {task.edit_files.map((file) =>
+                onFileSelect ? (
+                  <Button
+                    key={file.path}
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onFileSelect(file.path)}
+                  >
+                    <Pencil className="size-3.5" />
+                    {file.label}
+                  </Button>
+                ) : null
+              )}
             </div>
           </div>
         )}
 
+        {task.accept_files && (
+          <TaskFileUpload
+            taskId={task.id}
+            fileHint={task.file_hint}
+            onUploaded={onAnswered}
+          />
+        )}
+
         {showRestartPrimary && (
-          <Button
-            disabled={loading}
-            onClick={() => submit("Restart agent")}
-          >
+          <Button disabled={loading} onClick={() => submit("Restart agent")}>
             Restart agent
           </Button>
         )}

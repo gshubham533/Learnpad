@@ -1,25 +1,31 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { ChatSession } from "@/agent/lib/schemas";
 import type { StreamEvent } from "@/agent/lib/schemas";
 import type { AppState } from "@/agent/lib/schemas";
+import type { LoopContext } from "@/agent/lib/schemas";
 import { HomeHeader } from "@/components/home/HomeHeader";
 import { ChatSessionSheet } from "@/components/home/ChatSessionSheet";
 import { ChatTranscript } from "@/components/ChatTranscript";
 import { ChatComposer } from "@/components/home/ChatComposer";
+import { ChatLoopBanner } from "@/components/ChatLoopBanner";
+import { useAgentStatus } from "@/hooks/useAgentStatus";
 
 export function HomeChat() {
+  const { isRunning: agentRunning } = useAgentStatus(5000);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [events, setEvents] = useState<StreamEvent[]>([]);
   const [state, setState] = useState<AppState | null>(null);
+  const [loopContext, setLoopContext] = useState<LoopContext | null>(null);
   const [prompt, setPrompt] = useState("");
   const [sending, setSending] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [showScrollHint, setShowScrollHint] = useState(true);
+  const restoredSession = useRef(false);
 
   const loadSessions = useCallback(async () => {
     const res = await fetch("/api/chat");
@@ -50,6 +56,40 @@ export function HomeChat() {
     }, 5000);
     return () => clearInterval(interval);
   }, [loadSessions, loadState]);
+
+  useEffect(() => {
+    if (restoredSession.current) return;
+    restoredSession.current = true;
+
+    loadSessions().then((list) => {
+      if (list.length === 0) return;
+      const stored = localStorage.getItem("runboard-last-chat");
+      if (stored && list.some((s) => s.id === stored)) {
+        setActiveId(stored);
+        return;
+      }
+      const sorted = [...list].sort(
+        (a, b) =>
+          new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime()
+      );
+      setActiveId(sorted[0]?.id ?? null);
+    });
+  }, [loadSessions]);
+
+  useEffect(() => {
+    if (activeId) localStorage.setItem("runboard-last-chat", activeId);
+  }, [activeId]);
+
+  const loadLoopContext = useCallback(async () => {
+    const res = await fetch("/api/loop-context");
+    if (res.ok) setLoopContext(await res.json());
+  }, []);
+
+  useEffect(() => {
+    loadLoopContext();
+    const interval = setInterval(loadLoopContext, 3000);
+    return () => clearInterval(interval);
+  }, [loadLoopContext]);
 
   useEffect(() => {
     if (!activeId) return;
@@ -107,9 +147,11 @@ export function HomeChat() {
       toast.error(err instanceof Error ? err.message : "Send failed");
     } finally {
       setSending(false);
-      setIsRunning(false);
     }
   }
+
+  const transcriptRunning =
+    isRunning || sending || agentRunning || Boolean(loopContext?.process_running);
 
   const userName = state?.user_name?.trim();
   const greeting = userName
@@ -134,9 +176,13 @@ export function HomeChat() {
         onNew={handleNew}
       />
 
+      <div className="px-4">
+        <ChatLoopBanner loop={loopContext} />
+      </div>
+
       <ChatTranscript
         events={events}
-        isRunning={isRunning || sending}
+        isRunning={transcriptRunning}
         emptyMessage={emptyMessage}
         hideInternalEvents
       />

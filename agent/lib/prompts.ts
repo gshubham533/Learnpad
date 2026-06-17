@@ -10,11 +10,12 @@ import {
   syncNextPromptFromBacklog,
 } from "./state";
 import { countTasksByPriority } from "./taskBlocking";
+import { consumeUnreadContextForPrompt } from "./userInbox";
 
 export async function buildSelfPrompt(): Promise<string> {
   await syncNextPromptFromBacklog();
 
-  const [rules, state, config, journal, nextPrompt, questions, backlog, blueprint] =
+  const [rules, state, config, journal, nextPrompt, questions, backlog, blueprint, userContext] =
     await Promise.all([
       readAgentRules(),
       readState(),
@@ -24,6 +25,7 @@ export async function buildSelfPrompt(): Promise<string> {
       readQuestions(),
       readBacklog(),
       readBlueprint(),
+      consumeUnreadContextForPrompt(),
     ]);
 
   const journalLines = journal.split("\n").slice(-30).join("\n");
@@ -77,6 +79,10 @@ ${pendingBacklog.length > 0 ? pendingBacklog.map((i) => `- [${i.phase}] ${i.id}:
 
 ${journalLines}
 
+## User context (mid-run notes — do not restart the loop; incorporate into your plan)
+
+${userContext || "(none since last loop)"}
+
 ## Task to execute now
 
 ${nextPrompt}
@@ -89,10 +95,11 @@ Execute the task above. Before finishing:
 3. During **build** phase: mark completed backlog items \`done\` in \`state/backlog.json\`; NEXT_PROMPT is derived from backlog
 4. During **discover/polish**: write the next task to \`state/NEXT_PROMPT.md\` if no backlog item applies
 5. If the dashboard needs new UI, append to \`state/ui-blocks.json\`
-6. When adding tasks to \`state/questions.json\`, include \`priority\` (\`critical\` | \`normal\` | \`deferred\`) and \`kind\`. Batch questions — never one at a time mid-phase.
-7. Set \`status: waiting_for_user\` **only** when \`critical\` (or \`action_required\` in collaborative) tasks block progress. Optional/deferred tasks do not pause the loop.
-8. Never leave \`status: "running"\` when your turn ends
-9. Never resolve, supersede, or auto-answer tasks — only the user closes tasks via Tasks or chat
+6. When the user builds an app, register it in \`state/apps.json\` with \`name\`, \`url\` (dev or deployed), and \`status\` (\`dev\` | \`deployed\`). Add a \`links\` block on the dashboard when helpful.
+7. When adding tasks to \`state/questions.json\`, include \`priority\` (\`critical\` | \`normal\` | \`deferred\`) and \`kind\`. Batch questions — never one at a time mid-phase. When you need a file from the user, set \`accept_files: true\`, \`file_target\` (e.g. \`state/resources/\`), and \`file_hint\`.
+8. Set \`status: waiting_for_user\` **only** when \`critical\` (or \`action_required\` in collaborative) tasks block progress. Optional/deferred tasks do not pause the loop.
+9. Never leave \`status: "running"\` when your turn ends
+10. Never resolve, supersede, or auto-answer tasks — only the user closes tasks via Activity or chat
 
 Do not stop idle. Always leave a concrete next task.`;
 }

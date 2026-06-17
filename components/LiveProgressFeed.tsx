@@ -3,9 +3,16 @@
 import { useEffect, useRef } from "react";
 import { useLiveEvents } from "@/hooks/useLiveEvents";
 import { eventsToProgressLines, type ProgressLine } from "@/lib/liveEventLines";
+import { TextWithFileRefs, lineClassForKind } from "@/components/activity/TextWithFileRefs";
 import { cn } from "@/lib/utils";
 
-function ProgressLineRow({ line }: { line: ProgressLine }) {
+function ProgressLineRow({
+  line,
+  onFileSelect,
+}: {
+  line: ProgressLine;
+  onFileSelect?: (path: string) => void;
+}) {
   return (
     <div
       className={cn(
@@ -24,11 +31,11 @@ function ProgressLineRow({ line }: { line: ProgressLine }) {
           second: "2-digit",
         })}
       </span>
-      <p className={cn("min-w-0 flex-1 break-words", line.live && "animate-pulse")}>
+      <p className={lineClassForKind(line.kind, line.live)}>
         {line.kind === "tool" && <span className="text-muted-foreground">Tool · </span>}
         {line.kind === "thinking" && <span className="text-muted-foreground">Thinking · </span>}
         {line.kind === "error" && <span>Error · </span>}
-        {line.text}
+        <TextWithFileRefs text={line.text} onFileSelect={onFileSelect} />
       </p>
     </div>
   );
@@ -37,17 +44,20 @@ function ProgressLineRow({ line }: { line: ProgressLine }) {
 export function LiveProgressFeed({
   isRunning,
   className,
+  onFileSelect,
 }: {
   isRunning: boolean;
   className?: string;
+  onFileSelect?: (path: string) => void;
 }) {
   const events = useLiveEvents({ isRunning, pollMs: 1200, maxEvents: 300 });
   const lines = eventsToProgressLines(events, { source: "loop", maxLines: 16 });
   const bottomRef = useRef<HTMLDivElement>(null);
+  const lastLineId = lines[lines.length - 1]?.id;
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  }, [lines.length, lines[lines.length - 1]?.text]);
+  }, [lines.length, lastLineId]);
 
   return (
     <div
@@ -67,7 +77,7 @@ export function LiveProgressFeed({
         ) : (
           <div>
             {lines.map((line) => (
-              <ProgressLineRow key={line.id} line={line} />
+              <ProgressLineRow key={line.id} line={line} onFileSelect={onFileSelect} />
             ))}
             <div ref={bottomRef} />
           </div>

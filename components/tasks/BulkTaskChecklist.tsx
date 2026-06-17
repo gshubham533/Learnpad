@@ -7,7 +7,7 @@ import { TaskCard } from "@/components/tasks/TaskCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { MarkdownContent } from "@/components/MarkdownContent";
+import { MarkdownWithFileRefs } from "@/components/activity/MarkdownWithFileRefs";
 
 type TaskItem = Questions["pending"][number];
 
@@ -37,9 +37,11 @@ function groupTasks(tasks: TaskItem[]) {
 export function BulkTaskChecklist({
   tasks,
   onAnswered,
+  onFileSelect,
 }: {
   tasks: TaskItem[];
   onAnswered: () => void;
+  onFileSelect?: (path: string) => void;
 }) {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
@@ -84,7 +86,7 @@ export function BulkTaskChecklist({
             <h3 className="text-sm font-semibold">{groupLabel(priority)}</h3>
             {groupTasks.map((task) => (
               <div key={task.id} className="space-y-2 rounded-md border border-border p-3">
-                <MarkdownContent content={task.question} compact />
+                <MarkdownWithFileRefs content={task.question} compact onFileSelect={onFileSelect} />
                 {task.options.length > 0 && (
                   <div className="flex flex-wrap gap-2">
                     {task.options.map((opt) => (
@@ -127,21 +129,23 @@ export function BulkTaskChecklist({
 export function TaskListWithBulk({
   tasks,
   onAnswered,
+  onFileSelect,
 }: {
   tasks: TaskItem[];
   onAnswered: () => void;
+  onFileSelect?: (path: string) => void;
 }) {
   if (tasks.length >= 2) {
     return (
       <div className="space-y-4">
-        <BulkTaskChecklist tasks={tasks} onAnswered={onAnswered} />
+        <BulkTaskChecklist tasks={tasks} onAnswered={onAnswered} onFileSelect={onFileSelect} />
         <details className="text-sm">
           <summary className="cursor-pointer font-medium text-muted-foreground">
             Or answer one at a time
           </summary>
           <div className="mt-4 space-y-4">
             {tasks.map((task) => (
-              <TaskCard key={task.id} task={task} onAnswered={onAnswered} />
+              <TaskCard key={task.id} task={task} onAnswered={onAnswered} onFileSelect={onFileSelect} />
             ))}
           </div>
         </details>
@@ -152,7 +156,7 @@ export function TaskListWithBulk({
   return (
     <>
       {tasks.map((task) => (
-        <TaskCard key={task.id} task={task} onAnswered={onAnswered} />
+        <TaskCard key={task.id} task={task} onAnswered={onAnswered} onFileSelect={onFileSelect} />
       ))}
     </>
   );

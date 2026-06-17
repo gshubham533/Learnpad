@@ -99,6 +99,9 @@ export const QuestionItemSchema = z.object({
   edit_files: z
     .array(z.object({ label: z.string(), path: z.string() }))
     .optional(),
+  accept_files: z.boolean().optional(),
+  file_target: z.string().optional(),
+  file_hint: z.string().optional(),
 });
 
 export const QuestionsSchema = z.object({
@@ -217,3 +220,31 @@ export type LoopContext = z.infer<typeof LoopContextSchema>;
 export const SecretsSchema = z.object({
   CURSOR_API_KEY: z.string().min(1),
 });
+
+export const UserInboxMessageSchema = z.object({
+  ts: z.string(),
+  text: z.string(),
+  read: z.boolean().default(false),
+});
+
+export const UserInboxSchema = z.object({
+  messages: z.array(UserInboxMessageSchema).default([]),
+});
+
+export type UserInbox = z.infer<typeof UserInboxSchema>;
+
+export const AppRegistryItemSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  url: z.string(),
+  local_path: z.string().optional(),
+  status: z.enum(["dev", "deployed"]).default("dev"),
+  updated_at: z.string(),
+});
+
+export const AppsRegistrySchema = z.object({
+  apps: z.array(AppRegistryItemSchema).default([]),
+});
+
+export type AppsRegistry = z.infer<typeof AppsRegistrySchema>;
+export type AppRegistryItem = z.infer<typeof AppRegistryItemSchema>;

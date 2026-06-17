@@ -30,7 +30,7 @@ export function DynamicBlock({ block }: { block: UiBlock }) {
           <ul className="space-y-1">
             {block.items.map((item) => (
               <li key={item.href}>
-                {item.href.startsWith("/resources") ? (
+                {item.href.startsWith("/") ? (
                   <Link href={item.href} className="text-sm text-primary underline">
                     {item.label}
                   </Link>

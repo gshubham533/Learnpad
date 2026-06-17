@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useLiveEvents } from "@/hooks/useLiveEvents";
-import { MarkdownContent } from "@/components/MarkdownContent";
+import { MarkdownWithFileRefs } from "@/components/activity/MarkdownWithFileRefs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -12,16 +12,22 @@ function EventText({
   text,
   className,
   prefix,
+  onFileSelect,
 }: {
   text?: string;
   className?: string;
   prefix?: string;
+  onFileSelect?: (path: string) => void;
 }) {
   if (!text?.trim()) return null;
   return (
     <div className={cn("space-y-0.5", className)}>
       {prefix && <span className="font-medium">{prefix}</span>}
-      <MarkdownContent content={text} compact />
+      {onFileSelect ? (
+        <MarkdownWithFileRefs content={text} compact onFileSelect={onFileSelect} />
+      ) : (
+        <MarkdownWithFileRefs content={text} compact />
+      )}
     </div>
   );
 }
@@ -29,9 +35,11 @@ function EventText({
 export function LiveActivityPanel({
   isRunning,
   tall,
+  onFileSelect,
 }: {
   isRunning: boolean;
   tall?: boolean;
+  onFileSelect?: (path: string) => void;
 }) {
   const events = useLiveEvents({ isRunning });
   const [filter, setFilter] = useState<"all" | "loop" | "chat">("all");
@@ -77,20 +85,38 @@ export function LiveActivityPanel({
                       text={e.text}
                       prefix="thinking…"
                       className="text-muted-foreground italic"
+                      onFileSelect={onFileSelect}
                     />
                   )}
                   {e.type === "tool_call" && (
                     <Badge variant="secondary">{e.tool ?? "tool"}</Badge>
                   )}
-                  {e.type === "assistant" && <EventText text={e.text} />}
+                  {e.type === "assistant" && (
+                    <EventText text={e.text} onFileSelect={onFileSelect} />
+                  )}
                   {e.type === "user" && (
-                    <EventText text={e.text} prefix="you:" className="text-primary" />
+                    <EventText
+                      text={e.text}
+                      prefix="you:"
+                      className="text-primary"
+                      onFileSelect={onFileSelect}
+                    />
                   )}
                   {e.type === "status" && (
-                    <EventText text={e.text} prefix="—" className="text-muted-foreground" />
+                    <EventText
+                      text={e.text}
+                      prefix="—"
+                      className="text-muted-foreground"
+                      onFileSelect={onFileSelect}
+                    />
                   )}
                   {e.type === "error" && (
-                    <EventText text={e.text} prefix="error:" className="text-destructive" />
+                    <EventText
+                      text={e.text}
+                      prefix="error:"
+                      className="text-destructive"
+                      onFileSelect={onFileSelect}
+                    />
                   )}
                 </div>
               ))}

@@ -93,6 +93,8 @@ export async function syncBlockingWaitState(): Promise<void> {
   });
 }
 
+export const syncUserInputWaitState = syncBlockingWaitState;
+
 export async function getUserInputWaitSleepMs(): Promise<number> {
   const waitMs = (await getWaitIntervalMs()) ?? 2 * 60 * 60 * 1000;
   return Math.min(waitMs, 60000);
