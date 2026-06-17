@@ -26,6 +26,7 @@ const HIDDEN_NAMES = new Set([
   "NEXT_PROMPT.md",
   "QUESTIONS.md",
   "questions.json",
+  "resource-changelog.json",
   ".env",
   ".env.local",
   ".gitkeep",
@@ -34,6 +35,10 @@ const HIDDEN_NAMES = new Set([
 const HIDDEN_DIRS = new Set(["chats"]);
 
 const WRITABLE_PREFIXES = ["state/resources", "state/product"];
+
+const TRACKED_PREFIXES = ["state/resources", "state/product"];
+
+const MAX_CHANGELOG_ENTRIES = 200;
 
 export interface ResourceEntry {
   name: string;
@@ -49,6 +54,20 @@ export interface ResourceListResult {
   entries: ResourceEntry[];
   breadcrumbs: { label: string; path: string }[];
   writable: boolean;
+}
+
+export type ResourceChangeAction = "created" | "modified" | "deleted";
+
+export interface ResourceChange {
+  path: string;
+  name: string;
+  action: ResourceChangeAction;
+  at: string;
+}
+
+export interface ResourceSummary {
+  documents: ResourceEntry[];
+  changes: ResourceChange[];
 }
 
 export class ResourcePathError extends Error {
@@ -96,6 +115,162 @@ function isWritableRelPath(relPath: string): boolean {
   return WRITABLE_PREFIXES.some(
     (prefix) => normalized === prefix || normalized.startsWith(`${prefix}/`)
   );
+}
+
+function isTrackedRelPath(relPath: string): boolean {
+  const normalized = normalizeRelPath(relPath);
+  return TRACKED_PREFIXES.some(
+    (prefix) => normalized === prefix || normalized.startsWith(`${prefix}/`)
+  );
+}
+
+async function readChangelogFile(): Promise<ResourceChange[]> {
+  try {
+    const raw = await fs.readFile(PATHS.resourceChangelog, "utf-8");
+    const parsed = JSON.parse(raw) as { changes?: ResourceChange[] };
+    return Array.isArray(parsed.changes) ? parsed.changes : [];
+  } catch {
+    return [];
+  }
+}
+
+async function writeChangelogFile(changes: ResourceChange[]): Promise<void> {
+  await fs.mkdir(PATHS.state, { recursive: true });
+  await fs.writeFile(
+    PATHS.resourceChangelog,
+    JSON.stringify({ changes: changes.slice(0, MAX_CHANGELOG_ENTRIES) }, null, 2) + "\n"
+  );
+}
+
+export async function recordResourceChange(
+  relPath: string,
+  action: ResourceChangeAction,
+  at?: string
+): Promise<void> {
+  const normalized = normalizeRelPath(relPath);
+  if (!isTrackedRelPath(normalized)) return;
+
+  const changes = await readChangelogFile();
+  const entry: ResourceChange = {
+    path: normalized,
+    name: path.basename(normalized),
+    action,
+    at: at ?? new Date().toISOString(),
+  };
+
+  changes.unshift(entry);
+  await writeChangelogFile(changes);
+}
+
+function latestChangeByPath(changes: ResourceChange[]): Map<string, ResourceChange> {
+  const map = new Map<string, ResourceChange>();
+  for (const change of changes) {
+    if (!map.has(change.path)) map.set(change.path, change);
+  }
+  return map;
+}
+
+async function collectTrackedFiles(
+  relDir: string,
+  acc: ResourceEntry[] = []
+): Promise<ResourceEntry[]> {
+  const normalized = assertReadablePath(relDir);
+  const full = resolveFullPath(normalized);
+  const stat = await fs.stat(full).catch(() => null);
+  if (!stat?.isDirectory()) return acc;
+
+  const names = await fs.readdir(full);
+  for (const name of names.sort((a, b) => a.localeCompare(b))) {
+    if (isHiddenName(name) || HIDDEN_DIRS.has(name)) continue;
+    const childFull = path.join(full, name);
+    const childRel = relFromFull(childFull);
+    if (isHiddenRelPath(childRel) || !isTrackedRelPath(childRel)) continue;
+
+    const childStat = await fs.stat(childFull).catch(() => null);
+    if (!childStat) continue;
+
+    if (childStat.isDirectory()) {
+      await collectTrackedFiles(childRel, acc);
+      continue;
+    }
+
+    acc.push({
+      name,
+      path: childRel,
+      type: "file",
+      size: childStat.size,
+      modifiedAt: childStat.mtime.toISOString(),
+      mime: mimeForFile(name),
+    });
+  }
+
+  return acc;
+}
+
+async function syncResourceChangelog(): Promise<ResourceChange[]> {
+  const changes = await readChangelogFile();
+  const latest = latestChangeByPath(changes);
+  const productFiles = await collectTrackedFiles("state/product");
+  const uploadFiles = await collectTrackedFiles("state/resources");
+  const files = [...productFiles, ...uploadFiles];
+  const diskPaths = new Set(files.map((f) => f.path));
+  const pending: ResourceChange[] = [];
+
+  for (const file of files) {
+    const last = latest.get(file.path);
+    const mtime = file.modifiedAt ?? new Date().toISOString();
+
+    if (!last || last.action === "deleted") {
+      pending.push({
+        path: file.path,
+        name: file.name,
+        action: "created",
+        at: mtime,
+      });
+      continue;
+    }
+
+    if (new Date(mtime).getTime() > new Date(last.at).getTime() + 1000) {
+      pending.push({
+        path: file.path,
+        name: file.name,
+        action: "modified",
+        at: mtime,
+      });
+    }
+  }
+
+  for (const [filePath, last] of latest) {
+    if (last.action === "deleted") continue;
+    if (!diskPaths.has(filePath)) {
+      pending.push({
+        path: filePath,
+        name: path.basename(filePath),
+        action: "deleted",
+        at: new Date().toISOString(),
+      });
+    }
+  }
+
+  if (pending.length === 0) return changes;
+
+  pending.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+  const merged = [...pending, ...changes];
+  await writeChangelogFile(merged);
+  return merged.slice(0, MAX_CHANGELOG_ENTRIES);
+}
+
+export async function getResourceSummary(): Promise<ResourceSummary> {
+  const changes = await syncResourceChangelog();
+  const documents = await collectTrackedFiles("state/product");
+  const uploads = await collectTrackedFiles("state/resources");
+  documents.push(...uploads);
+  documents.sort(
+    (a, b) =>
+      new Date(b.modifiedAt ?? 0).getTime() - new Date(a.modifiedAt ?? 0).getTime()
+  );
+
+  return { documents, changes };
 }
 
 function mimeForFile(name: string): string {
@@ -266,10 +441,17 @@ export async function writeResourceFile(
   const name = path.basename(full);
   sanitizeFilename(name);
 
+  const existed = await fs.stat(full).catch(() => null);
   await fs.mkdir(path.dirname(full), { recursive: true });
   await fs.writeFile(full, buffer);
 
   const stat = await fs.stat(full);
+  await recordResourceChange(
+    normalized,
+    existed?.isFile() ? "modified" : "created",
+    stat.mtime.toISOString()
+  );
+
   return {
     name,
     path: normalized,
@@ -288,8 +470,11 @@ export async function deleteResourceFile(relPath: string): Promise<void> {
   if (!stat?.isFile()) throw new ResourcePathError("File not found", 404);
 
   await fs.unlink(full);
+  await recordResourceChange(normalized, "deleted");
 }
 
 export function isBinaryPreviewMime(mime: string): boolean {
   return mime.startsWith("image/") || mime === "application/pdf";
 }
+
+export { isEditableResourceMime } from "@/lib/resource-display";

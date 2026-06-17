@@ -176,7 +176,13 @@ export async function summarizeNextPrompt(): Promise<string> {
 
 export async function refreshRunningTaskState(): Promise<string> {
   const summary = await summarizeNextPrompt();
-  await writeState({ status: "running", next_action: summary });
+  const questions = await readQuestions();
+  const awaitingUser = questions.pending.some((q) => q.kind === "user_input");
+  await writeState({
+    status: awaitingUser ? "waiting_for_user" : "running",
+    next_action: summary,
+    questions_pending: questions.pending.length > 0,
+  });
   return summary;
 }
 

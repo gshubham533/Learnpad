@@ -1,8 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
+import { Pencil } from "lucide-react";
 import { toast } from "sonner";
 import type { Questions, TaskKind } from "@/agent/lib/schemas";
+import { resourceEditUrl } from "@/lib/resource-url";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -103,6 +106,24 @@ export function TaskCard({
           <div className="rounded-md bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
             <span className="font-medium text-foreground">Then: </span>
             <MarkdownContent content={task.unblocks} compact className="mt-1" />
+          </div>
+        )}
+
+        {task.edit_files && task.edit_files.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Edit files</p>
+            <div className="flex flex-wrap gap-2">
+              {task.edit_files.map((file) => (
+                <Link
+                  key={file.path}
+                  href={resourceEditUrl(file.path)}
+                  className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-3 text-sm font-medium hover:bg-accent"
+                >
+                  <Pencil className="size-3.5" />
+                  {file.label}
+                </Link>
+              ))}
+            </div>
           </div>
         )}
 

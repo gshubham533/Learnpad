@@ -16,6 +16,7 @@ export const PATHS = {
   profitPlan: path.join(REPO_ROOT, "state", "profit-plan.json"),
   product: path.join(REPO_ROOT, "state", "product"),
   resources: path.join(REPO_ROOT, "state", "resources"),
+  resourceChangelog: path.join(REPO_ROOT, "state", "resource-changelog.json"),
   generated: path.join(REPO_ROOT, "app", "generated"),
   stop: path.join(REPO_ROOT, "state", "STOP"),
   agentPid: path.join(REPO_ROOT, "state", "agent.pid"),

@@ -45,6 +45,7 @@ Execute the task above. Before finishing:
 4. If the dashboard needs new UI, append to \`state/ui-blocks.json\`
 5. If blocked, add to \`state/questions.json\` (with \`kind\`, \`context\`, \`unblocks\`, \`created_at\`), update \`state/agent-pause.json\`, and set status to \`waiting_for_user\` or \`error\` as appropriate
 6. Never leave \`status: "running"\` when your turn ends
+7. Never resolve, supersede, or auto-answer tasks — only the user closes tasks via Tasks or chat
 
 Do not stop idle. Always leave a concrete next task.`;
 }

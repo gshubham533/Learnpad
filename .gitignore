@@ -33,11 +33,18 @@ prd.txt
 .env*
 secrets.local.json
 
-# learnpad runtime state
-state/STOP
-state/agent.pid
-state/live.jsonl
-state/chats/*.jsonl
+# learnpad user / runtime data (local only — do not commit)
+state/*
+!state/resources/
+!state/product/
+!state/chats/
+state/resources/*
+!state/resources/.gitkeep
+state/product/*
+!state/product/.gitkeep
+state/chats/*
+!state/chats/.gitkeep
+app/generated/
 
 # typescript
 *.tsbuildinfo

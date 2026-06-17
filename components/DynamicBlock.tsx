@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { UiBlock } from "@/agent/lib/schemas";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -29,14 +30,20 @@ export function DynamicBlock({ block }: { block: UiBlock }) {
           <ul className="space-y-1">
             {block.items.map((item) => (
               <li key={item.href}>
-                <a
-                  href={item.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-primary underline"
-                >
-                  {item.label}
-                </a>
+                {item.href.startsWith("/resources") ? (
+                  <Link href={item.href} className="text-sm text-primary underline">
+                    {item.label}
+                  </Link>
+                ) : (
+                  <a
+                    href={item.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-primary underline"
+                  >
+                    {item.label}
+                  </a>
+                )}
               </li>
             ))}
           </ul>

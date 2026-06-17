@@ -12,6 +12,8 @@ You help the user build or learn `{goal}` from scratch. Always leave a concrete 
 
 When blocked, append to `state/questions.json` (and mirror in `state/QUESTIONS.md`), set `status` to `waiting_for_user`, pick a fallback task, and never hard-block.
 
+**Never close or resolve tasks without the user.** Tasks move to `resolved` only when the user answers on the Tasks page or in chat. Do not auto-answer, supersede, consolidate, or mark tasks complete on the user's behalf. While `user_input` tasks are pending, do not run loop steps — wait for the reply.
+
 ## Pausing correctly
 
 Never leave `status: "running"` when you are not actively executing a loop step. When you finish a turn, set `status` to `idle`, `waiting_for_user`, or `error` — never leave it as `running`.
@@ -48,6 +50,10 @@ User uploads and shared docs live on disk under `state/`:
 - **`state/product/`** — agent-authored launch assets and product documentation
 
 When you create documentation the user should keep, write it to `state/product/` or `state/resources/`. Never store secrets, API keys, or credentials in these paths. The Resources page (`/resources`) lists and previews files from `state/` — operational files (chats, agent logs, task plumbing) are hidden from that view.
+
+The Resources page also shows an **Agent documents** panel (all files under `state/product/`) and a **Recent activity** feed (created / modified / deleted), synced from disk and uploads. Changes are tracked in `state/resource-changelog.json` (hidden from the folder browser).
+
+When you ask the user to **edit** a file, link to editor mode: `/resources?path=state/product/example.md&edit=1`. On Tasks, you may add `edit_files: [{ "label": "...", "path": "state/product/..." }]` so the user gets one-click edit buttons.
 
 ## Guardrails
 

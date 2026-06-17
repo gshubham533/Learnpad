@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Download, Trash2 } from "lucide-react";
+import { Download, Pencil, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { MarkdownContent } from "@/components/MarkdownContent";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import { isEditableResourceMime } from "@/lib/resource-display";
 
 interface PreviewData {
   path: string;
@@ -18,20 +21,33 @@ interface PreviewData {
 export function ResourcePreview({
   path,
   writable,
+  editMode,
+  onEditModeChange,
   onDeleted,
+  onSaved,
 }: {
   path: string | null;
   writable: boolean;
+  editMode?: boolean;
+  onEditModeChange?: (edit: boolean) => void;
   onDeleted: () => void;
+  onSaved?: () => void;
 }) {
   const [data, setData] = useState<PreviewData | null>(null);
+  const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  const editable =
+    writable && data?.encoding === "utf-8" && isEditableResourceMime(data.mime);
+  const dirty = editable && draft !== data?.content;
 
   useEffect(() => {
     if (!path) {
       setData(null);
+      setDraft("");
       setError(null);
       return;
     }
@@ -44,11 +60,15 @@ export function ResourcePreview({
       .then(async (res) => {
         const json = await res.json();
         if (!res.ok) throw new Error(json.error ?? "Failed to load preview");
-        if (!cancelled) setData(json);
+        if (!cancelled) {
+          setData(json);
+          if (json.encoding === "utf-8") setDraft(json.content);
+        }
       })
       .catch((err) => {
         if (!cancelled) {
           setData(null);
+          setDraft("");
           setError(err instanceof Error ? err.message : "Failed to load preview");
         }
       })
@@ -60,6 +80,36 @@ export function ResourcePreview({
       cancelled = true;
     };
   }, [path]);
+
+  async function handleSave() {
+    if (!path || !editable) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/resources", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path, content: draft }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Save failed");
+      setData((prev) => (prev ? { ...prev, content: draft } : prev));
+      onEditModeChange?.(false);
+      onSaved?.();
+      toast.success("File saved");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Save failed";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function handleCancelEdit() {
+    if (data?.encoding === "utf-8") setDraft(data.content);
+    onEditModeChange?.(false);
+  }
 
   async function handleDelete() {
     if (!path || !writable) return;
@@ -92,17 +142,31 @@ export function ResourcePreview({
   return (
     <div className="flex h-full min-h-[280px] flex-col">
       <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
-        <p className="truncate text-sm font-medium">{path.split("/").pop()}</p>
+        <p className="truncate text-sm font-medium">
+          {editMode ? "Editing" : "Preview"} · {path.split("/").pop()}
+        </p>
         <div className="flex shrink-0 gap-1">
-          <a
-            href={`/api/resources?path=${encodeURIComponent(path)}&mode=download`}
-            download
-            className="inline-flex size-8 items-center justify-center rounded-lg hover:bg-accent"
-            title="Download"
-          >
-            <Download className="size-4" />
-          </a>
-          {writable && (
+          {editable && !editMode && (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => onEditModeChange?.(true)}
+              title="Edit file"
+            >
+              <Pencil className="size-4" />
+            </Button>
+          )}
+          {!editMode && (
+            <a
+              href={`/api/resources?path=${encodeURIComponent(path)}&mode=download`}
+              download
+              className="inline-flex size-8 items-center justify-center rounded-lg hover:bg-accent"
+              title="Download"
+            >
+              <Download className="size-4" />
+            </a>
+          )}
+          {writable && !editMode && (
             <Button
               variant="ghost"
               size="icon-sm"
@@ -116,10 +180,30 @@ export function ResourcePreview({
         </div>
       </div>
 
+      {editMode && editable && (
+        <div className="flex items-center justify-end gap-2 border-b border-border px-3 py-2">
+          <Button variant="ghost" size="sm" onClick={handleCancelEdit} disabled={saving}>
+            Cancel
+          </Button>
+          <Button size="sm" onClick={handleSave} disabled={saving || !dirty}>
+            {saving ? "Saving…" : "Save"}
+          </Button>
+        </div>
+      )}
+
       <ScrollArea className="flex-1 p-3">
         {loading && <p className="text-sm text-muted-foreground">Loading preview…</p>}
         {error && <p className="text-sm text-destructive">{error}</p>}
-        {data && <PreviewBody data={data} />}
+        {data && editMode && editable ? (
+          <Textarea
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            className="min-h-[50vh] font-mono text-xs leading-relaxed"
+            spellCheck={data.mime === "text/markdown"}
+          />
+        ) : (
+          data && <PreviewBody data={data} />
+        )}
       </ScrollArea>
     </div>
   );

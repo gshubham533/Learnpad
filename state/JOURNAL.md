@@ -1,1 +1,0 @@
-# Learnpad Journal

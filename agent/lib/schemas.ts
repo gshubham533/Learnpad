@@ -22,6 +22,7 @@ export const ConfigSchema = z.object({
   self_prompting_recommended: z.boolean().default(true),
   model: z.string().default("composer-2.5"),
   question_timeout_hours: z.number().positive().default(4),
+  auto_decide_on_timeout: z.boolean().default(false),
   wait_gate: z
     .object({
       recheck_intervals_hours: z.array(z.number().positive()).default([2, 4, 8, 12, 24]),
@@ -81,6 +82,9 @@ export const QuestionItemSchema = z.object({
   context: z.string().optional(),
   unblocks: z.string().optional(),
   created_at: z.string().optional(),
+  edit_files: z
+    .array(z.object({ label: z.string(), path: z.string() }))
+    .optional(),
 });
 
 export const QuestionsSchema = z.object({

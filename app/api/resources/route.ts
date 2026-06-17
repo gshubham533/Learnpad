@@ -3,11 +3,13 @@ import path from "path";
 import {
   ResourcePathError,
   deleteResourceFile,
+  getResourceSummary,
   listResourcesDir,
   readResourceFile,
   sanitizeFilename,
   writeResourceFile,
   isBinaryPreviewMime,
+  isEditableResourceMime,
 } from "@/agent/lib/resources";
 
 function errorResponse(err: unknown) {
@@ -23,6 +25,11 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const relPath = searchParams.get("path") ?? "state";
     const mode = searchParams.get("mode");
+
+    if (mode === "summary") {
+      const summary = await getResourceSummary();
+      return NextResponse.json(summary);
+    }
 
     if (mode === "content" || mode === "download") {
       const { content, mime, name } = await readResourceFile(relPath);
@@ -58,6 +65,34 @@ export async function GET(request: Request) {
 
     const result = await listResourcesDir(relPath);
     return NextResponse.json(result);
+  } catch (err) {
+    return errorResponse(err);
+  }
+}
+
+export async function PUT(request: Request) {
+  try {
+    const body = await request.json();
+    const relPath = body.path as string | undefined;
+    const content = body.content;
+
+    if (!relPath || typeof content !== "string") {
+      return NextResponse.json({ error: "path and content required" }, { status: 400 });
+    }
+
+    const { mime, name } = await readResourceFile(relPath).catch(() => ({
+      mime: "",
+      name: path.basename(relPath),
+    }));
+
+    const targetMime = mime || "text/plain";
+    if (!isEditableResourceMime(targetMime)) {
+      return NextResponse.json({ error: "File is not editable" }, { status: 415 });
+    }
+
+    const buffer = Buffer.from(content, "utf-8");
+    const entry = await writeResourceFile(relPath, buffer);
+    return NextResponse.json({ ok: true, entry, name });
   } catch (err) {
     return errorResponse(err);
   }

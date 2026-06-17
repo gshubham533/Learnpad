@@ -1,5 +1,11 @@
 import { readConfig, readQuestions, readState, writeState } from "./state";
 
+export function hasPendingUserInput(
+  questions: Awaited<ReturnType<typeof readQuestions>>
+): boolean {
+  return questions.pending.some((q) => q.kind === "user_input");
+}
+
 export async function getWaitIntervalMs(): Promise<number | null> {
   const [state, config] = await Promise.all([readState(), readConfig()]);
   if (state.status !== "waiting_for_user") return null;
@@ -13,8 +19,12 @@ export async function getWaitIntervalMs(): Promise<number | null> {
   return hours * 60 * 60 * 1000;
 }
 
+/** Tasks must only be resolved when the user replies — never auto-close. */
 export async function shouldAutoDecide(): Promise<boolean> {
-  const [state, config] = await Promise.all([readState(), readConfig()]);
+  const config = await readConfig();
+  if (!config.auto_decide_on_timeout) return false;
+
+  const state = await readState();
   if (state.status !== "waiting_for_user") return false;
 
   const questions = await readQuestions();
@@ -45,4 +55,20 @@ export async function applyAutoDecide() {
     status: "running",
     questions_pending: questions.pending.length > 1,
   });
+}
+
+/** Block the loop until the user answers pending user_input tasks. */
+export async function syncUserInputWaitState(): Promise<void> {
+  const questions = await readQuestions();
+  if (!hasPendingUserInput(questions)) return;
+
+  await writeState({
+    status: "waiting_for_user",
+    questions_pending: true,
+  });
+}
+
+export async function getUserInputWaitSleepMs(): Promise<number> {
+  const waitMs = (await getWaitIntervalMs()) ?? 2 * 60 * 60 * 1000;
+  return Math.min(waitMs, 60000);
 }

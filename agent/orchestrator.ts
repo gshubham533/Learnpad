@@ -2,11 +2,18 @@ import { Agent, CursorAgentError } from "@cursor/sdk";
 import { buildAgentOptions, buildSendOptions } from "./lib/sdkAgent";
 import { buildSelfPrompt } from "./lib/prompts";
 import { consumeSdkStream } from "./lib/streamLog";
-import { getWaitIntervalMs, shouldAutoDecide, applyAutoDecide } from "./lib/waitGate";
+import {
+  getUserInputWaitSleepMs,
+  hasPendingUserInput,
+  shouldAutoDecide,
+  applyAutoDecide,
+  syncUserInputWaitState,
+} from "./lib/waitGate";
 import {
   appendJournal,
   clearPid,
   readConfig,
+  readQuestions,
   readSecrets,
   readState,
   refreshRunningTaskState,
@@ -36,19 +43,31 @@ async function runOnce(): Promise<boolean> {
     return false;
   }
 
-  const [state, config] = await Promise.all([readState(), readConfig()]);
+  const [state, config, questions] = await Promise.all([
+    readState(),
+    readConfig(),
+    readQuestions(),
+  ]);
+
+  if (hasPendingUserInput(questions)) {
+    await syncUserInputWaitState();
+    const sleepMs = await getUserInputWaitSleepMs();
+    console.log(
+      `[agent] ${questions.pending.length} task(s) awaiting your reply — not running loop (recheck in ${sleepMs / 60000}m)`
+    );
+    await sleep(sleepMs);
+    return true;
+  }
 
   if (state.status === "waiting_for_user") {
     if (await shouldAutoDecide()) {
       console.log("[agent] Auto-deciding after question timeout");
       await applyAutoDecide();
     } else {
-      const waitMs = await getWaitIntervalMs();
-      if (waitMs) {
-        console.log(`[agent] Waiting for user, recheck in ${waitMs / 3600000}h`);
-        await sleep(Math.min(waitMs, 60000)); // cap sleep in dev for responsiveness
-        return true;
-      }
+      const sleepMs = await getUserInputWaitSleepMs();
+      console.log(`[agent] Waiting for user, recheck in ${sleepMs / 60000}m`);
+      await sleep(sleepMs);
+      return true;
     }
   }
 
@@ -82,10 +101,19 @@ async function runOnce(): Promise<boolean> {
           : state.agent_id;
 
       const taskSummary = await summarizeNextPrompt();
+      const afterQuestions = await readQuestions();
+      const awaitingUser = hasPendingUserInput(afterQuestions);
+      const nextStatus =
+        result.status === "error"
+          ? "error"
+          : awaitingUser
+            ? "waiting_for_user"
+            : "idle";
       await writeState({
         agent_id: agentId ?? state.agent_id,
         loop_count: state.loop_count + 1,
-        status: result.status === "error" ? "error" : "idle",
+        status: nextStatus,
+        questions_pending: awaitingUser || afterQuestions.pending.length > 0,
         next_action:
           result.status === "error"
             ? `Retrying: ${taskSummary}`
