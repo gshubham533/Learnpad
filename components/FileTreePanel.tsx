@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { MarkdownContent } from "@/components/MarkdownContent";
 
 interface TreeNode {
   name: string;
@@ -32,9 +33,9 @@ function TreeItem({ node, depth = 0 }: { node: TreeNode; depth?: number }) {
           📄 {node.name}
         </button>
         {preview && (
-          <pre className="mt-1 max-h-32 overflow-auto rounded bg-muted p-2 text-xs">
-            {preview}
-          </pre>
+          <div className="mt-1 max-h-32 overflow-auto rounded bg-muted p-2">
+            <MarkdownContent content={preview} compact />
+          </div>
         )}
       </div>
     );

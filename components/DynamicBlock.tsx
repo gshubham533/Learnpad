@@ -1,6 +1,7 @@
 import type { UiBlock } from "@/agent/lib/schemas";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { MarkdownContent } from "@/components/MarkdownContent";
 
 export function DynamicBlock({ block }: { block: UiBlock }) {
   return (
@@ -15,11 +16,11 @@ export function DynamicBlock({ block }: { block: UiBlock }) {
         {block.type === "checklist" && (
           <ul className="space-y-2">
             {block.items.map((item) => (
-              <li key={item.label} className="flex items-center gap-2 text-sm">
-                <Badge className={item.done ? "" : "bg-muted text-muted-foreground"}>
+              <li key={item.label} className="flex items-start gap-2 text-sm">
+                <Badge variant={item.done ? "default" : "secondary"} className="shrink-0">
                   {item.done ? "done" : "todo"}
                 </Badge>
-                {item.label}
+                <MarkdownContent content={item.label} compact className="min-w-0 flex-1" />
               </li>
             ))}
           </ul>
@@ -56,8 +57,8 @@ export function DynamicBlock({ block }: { block: UiBlock }) {
                 {block.rows.map((row, i) => (
                   <tr key={i}>
                     {row.map((cell, j) => (
-                      <td key={j} className="border-b border-border px-2 py-1">
-                        {cell}
+                      <td key={j} className="border-b border-border px-2 py-1 align-top">
+                        <MarkdownContent content={cell} compact />
                       </td>
                     ))}
                   </tr>
@@ -67,7 +68,7 @@ export function DynamicBlock({ block }: { block: UiBlock }) {
           </div>
         )}
         {block.type === "markdown" && (
-          <pre className="whitespace-pre-wrap text-sm">{block.content}</pre>
+          <MarkdownContent content={block.content} />
         )}
       </CardContent>
     </Card>

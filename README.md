@@ -1,6 +1,6 @@
 # Learnpad
 
-A launchpad for learning by building. Paste your Cursor API key, describe what you want to build, and watch an autonomous agent work — with a simple dashboard to track progress, answer questions, and chat.
+A launchpad for learning by building. Paste your Cursor API key, describe what you want to build, and watch an autonomous agent work — with a simple dashboard to track progress, complete your tasks, and chat.
 
 ## Quick start (non-technical)
 
@@ -12,7 +12,7 @@ A launchpad for learning by building. Paste your Cursor API key, describe what y
    npm run dev
    ```
 4. Open **http://localhost:3000/setup** in your browser
-5. Paste your **Cursor API key** (Dashboard → Integrations → User API keys)
+5. Paste your **Cursor API key** from the [Cursor API keys page](https://cursor.com/dashboard/api?section=user-keys#user-api-keys)
 6. Describe **what you want to build or learn**
 7. Go to the **Dashboard** and click **Start**
 
@@ -22,9 +22,10 @@ That's it. One terminal command (`npm run dev`). The Start/Stop buttons control 
 
 | Page | What it does |
 |------|----------------|
-| **Dashboard** | Status, Start/Stop, what's done, what's next, live activity, project files |
+| **Dashboard** | Overview, Start/Stop, progress journal, project files |
+| **What's Happening** | Live agent activity, current task, full stream |
+| **Your tasks** | Input the agent needs from you to keep going |
 | **Chat** | Freeform conversation with Cursor (New Chat, live streaming) |
-| **Questions** | Answer structured questions when the agent is blocked |
 | **Settings** | Self-prompting on/off, model, timeouts |
 | **Setup** | API key and goal |
 

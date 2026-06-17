@@ -8,5 +8,9 @@
   },
   "guardrails": {
     "require_approval_for": ["spending", "paid_services"]
+  },
+  "stall_detection": {
+    "enabled": true,
+    "no_activity_minutes": 15
   }
 }

@@ -1,40 +1,40 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import type { StreamEvent } from "@/agent/lib/schemas";
+import { useState } from "react";
+import { useLiveEvents } from "@/hooks/useLiveEvents";
+import { MarkdownContent } from "@/components/MarkdownContent";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { cn } from "@/lib/utils";
 
-export function LiveActivityPanel({ isRunning }: { isRunning: boolean }) {
-  const [events, setEvents] = useState<StreamEvent[]>([]);
+function EventText({
+  text,
+  className,
+  prefix,
+}: {
+  text?: string;
+  className?: string;
+  prefix?: string;
+}) {
+  if (!text?.trim()) return null;
+  return (
+    <div className={cn("space-y-0.5", className)}>
+      {prefix && <span className="font-medium">{prefix}</span>}
+      <MarkdownContent content={text} compact />
+    </div>
+  );
+}
+
+export function LiveActivityPanel({
+  isRunning,
+  tall,
+}: {
+  isRunning: boolean;
+  tall?: boolean;
+}) {
+  const events = useLiveEvents({ isRunning });
   const [filter, setFilter] = useState<"all" | "loop" | "chat">("all");
-  const lastTs = useRef<string | undefined>(undefined);
-
-  useEffect(() => {
-    let active = true;
-
-    async function poll() {
-      const params = lastTs.current ? `?since=${encodeURIComponent(lastTs.current)}` : "";
-      const res = await fetch(`/api/live${params}`);
-      const data = await res.json();
-      if (!active) return;
-      if (data.events?.length) {
-        setEvents((prev) => {
-          const merged = [...prev, ...data.events];
-          return merged.slice(-200);
-        });
-        lastTs.current = data.events[data.events.length - 1].ts;
-      }
-    }
-
-    poll();
-    const interval = setInterval(poll, isRunning ? 1500 : 3000);
-    return () => {
-      active = false;
-      clearInterval(interval);
-    };
-  }, [isRunning]);
 
   const filtered = events.filter(
     (e) => filter === "all" || e.source === filter
@@ -59,30 +59,38 @@ export function LiveActivityPanel({ isRunning }: { isRunning: boolean }) {
         </div>
       </CardHeader>
       <CardContent>
-        <ScrollArea className="h-64 rounded-md border border-border p-3 font-mono text-xs">
+        <ScrollArea
+          className={
+            tall
+              ? "h-[28rem] rounded-md border border-border p-3 text-sm"
+              : "h-64 rounded-md border border-border p-3 text-sm"
+          }
+        >
           {filtered.length === 0 ? (
             <p className="text-muted-foreground">No activity yet. Start the agent or send a chat.</p>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {filtered.map((e, i) => (
-                <div key={`${e.ts}-${i}`}>
+                <div key={`${e.ts}-${i}`} className="border-b border-border/50 pb-2 last:border-0">
                   {e.type === "thinking" && (
-                    <p className="text-muted-foreground italic">thinking… {e.text?.slice(0, 120)}</p>
+                    <EventText
+                      text={e.text}
+                      prefix="thinking…"
+                      className="text-muted-foreground italic"
+                    />
                   )}
                   {e.type === "tool_call" && (
-                    <Badge className="bg-accent text-accent-foreground">{e.tool ?? "tool"}</Badge>
+                    <Badge variant="secondary">{e.tool ?? "tool"}</Badge>
                   )}
-                  {e.type === "assistant" && (
-                    <p className="whitespace-pre-wrap">{e.text}</p>
-                  )}
+                  {e.type === "assistant" && <EventText text={e.text} />}
                   {e.type === "user" && (
-                    <p className="text-primary">you: {e.text}</p>
+                    <EventText text={e.text} prefix="you:" className="text-primary" />
                   )}
                   {e.type === "status" && (
-                    <p className="text-muted-foreground">— {e.text}</p>
+                    <EventText text={e.text} prefix="—" className="text-muted-foreground" />
                   )}
                   {e.type === "error" && (
-                    <p className="text-red-600">error: {e.text}</p>
+                    <EventText text={e.text} prefix="error:" className="text-destructive" />
                   )}
                 </div>
               ))}

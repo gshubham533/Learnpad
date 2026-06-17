@@ -1,12 +1,20 @@
 import type { Metadata } from "next";
 import { Toaster } from "sonner";
-import { Nav } from "@/components/Nav";
+import { AppShell } from "@/components/AppShell";
+import { ThemeProvider } from "@/components/ThemeProvider";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
+import { Geist } from "next/font/google";
+import { cn } from "@/lib/utils";
+
+const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
   title: "Learnpad",
   description: "A launchpad for learning by building",
 };
+
+export const dynamic = "force-dynamic";
 
 export default function RootLayout({
   children,
@@ -14,11 +22,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning className={cn("font-sans", geist.variable)}>
       <body className="min-h-screen antialiased">
-        <Nav />
-        <main className="mx-auto max-w-6xl p-4 md:p-6">{children}</main>
-        <Toaster position="bottom-right" />
+        <ThemeProvider>
+          <TooltipProvider>
+            <AppShell>{children}</AppShell>
+            <Toaster position="bottom-right" />
+          </TooltipProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

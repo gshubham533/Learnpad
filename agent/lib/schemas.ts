@@ -6,6 +6,7 @@ export const StateSchema = z.object({
     .enum(["idle", "running", "waiting_for_user", "error"])
     .default("idle"),
   goal: z.string().default(""),
+  user_name: z.string().default(""),
   agent_id: z.string().nullable().default(null),
   next_action: z.string().default("Run setup wizard"),
   self_prompting: z.boolean().default(true),
@@ -31,15 +32,55 @@ export const ConfigSchema = z.object({
       require_approval_for: z.array(z.string()).default(["spending", "paid_services"]),
     })
     .default({ require_approval_for: ["spending", "paid_services"] }),
+  stall_detection: z
+    .object({
+      enabled: z.boolean().default(true),
+      no_activity_minutes: z.number().positive().default(15),
+    })
+    .default({ enabled: true, no_activity_minutes: 15 }),
 });
 
 export type AppConfig = z.infer<typeof ConfigSchema>;
+
+export const TaskKindSchema = z.enum([
+  "user_input",
+  "external_wait",
+  "system_error",
+  "stuck",
+]);
+
+export type TaskKind = z.infer<typeof TaskKindSchema>;
+
+export const PauseKindSchema = z.enum([
+  "none",
+  "user_input",
+  "external_wait",
+  "system_error",
+  "stuck",
+]);
+
+export type PauseKind = z.infer<typeof PauseKindSchema>;
+
+export const AgentPauseSchema = z.object({
+  kind: PauseKindSchema.default("none"),
+  title: z.string().default(""),
+  summary: z.string().default(""),
+  detail: z.string().default(""),
+  since: z.string().default(""),
+  next_when: z.string().default(""),
+});
+
+export type AgentPause = z.infer<typeof AgentPauseSchema>;
 
 export const QuestionItemSchema = z.object({
   id: z.string(),
   question: z.string(),
   options: z.array(z.string()),
   answer: z.string().nullable().default(null),
+  kind: TaskKindSchema.default("user_input"),
+  context: z.string().optional(),
+  unblocks: z.string().optional(),
+  created_at: z.string().optional(),
 });
 
 export const QuestionsSchema = z.object({
@@ -114,6 +155,23 @@ export const StreamEventSchema = z.object({
 });
 
 export type StreamEvent = z.infer<typeof StreamEventSchema>;
+
+export const LoopContextSchema = z.object({
+  goal: z.string(),
+  status: z.string(),
+  phase: z.string(),
+  next_action: z.string(),
+  next_prompt: z.string(),
+  loop_count: z.number(),
+  questions_pending: z.boolean(),
+  pending_tasks: z.array(
+    z.object({ id: z.string(), question: z.string() })
+  ),
+  process_running: z.boolean(),
+  journal_excerpt: z.string(),
+});
+
+export type LoopContext = z.infer<typeof LoopContextSchema>;
 
 export const SecretsSchema = z.object({
   CURSOR_API_KEY: z.string().min(1),

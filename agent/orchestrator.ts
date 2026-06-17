@@ -1,4 +1,5 @@
 import { Agent, CursorAgentError } from "@cursor/sdk";
+import { buildAgentOptions, buildSendOptions } from "./lib/sdkAgent";
 import { buildSelfPrompt } from "./lib/prompts";
 import { consumeSdkStream } from "./lib/streamLog";
 import { getWaitIntervalMs, shouldAutoDecide, applyAutoDecide } from "./lib/waitGate";
@@ -8,9 +9,10 @@ import {
   readConfig,
   readSecrets,
   readState,
+  refreshRunningTaskState,
   stopExists,
+  summarizeNextPrompt,
   writeState,
-  REPO_ROOT,
 } from "./lib/state";
 
 const COOLDOWN_MS = 3000;
@@ -53,21 +55,19 @@ async function runOnce(): Promise<boolean> {
   const prompt = await buildSelfPrompt();
   console.log("[agent] Sending prompt, loop", state.loop_count + 1);
 
-  await writeState({ status: "running" });
+  await refreshRunningTaskState();
+  let loopFinished = false;
 
   try {
+    const agentOpts = buildAgentOptions(secrets.CURSOR_API_KEY, config.model);
+    const sendOpts = buildSendOptions(config.model);
+
     const agent = state.agent_id
-      ? await Agent.resume(state.agent_id, {
-          apiKey: secrets.CURSOR_API_KEY,
-        })
-      : await Agent.create({
-          apiKey: secrets.CURSOR_API_KEY,
-          model: { id: config.model },
-          local: { cwd: REPO_ROOT },
-        });
+      ? await Agent.resume(state.agent_id, agentOpts)
+      : await Agent.create(agentOpts);
 
     try {
-      const run = await agent.send(prompt);
+      const run = await agent.send(prompt, sendOpts);
       console.log("[agent] Run started:", run.id);
 
       if (run.stream) {
@@ -81,12 +81,17 @@ async function runOnce(): Promise<boolean> {
           ? agent.agentId
           : state.agent_id;
 
+      const taskSummary = await summarizeNextPrompt();
       await writeState({
         agent_id: agentId ?? state.agent_id,
         loop_count: state.loop_count + 1,
         status: result.status === "error" ? "error" : "idle",
-        next_action: result.status === "error" ? "Review error and retry" : state.next_action,
+        next_action:
+          result.status === "error"
+            ? `Retrying: ${taskSummary}`
+            : taskSummary,
       });
+      loopFinished = true;
 
       await appendJournal(
         `Loop ${state.loop_count + 1} completed with status: ${result.status}`
@@ -108,6 +113,17 @@ async function runOnce(): Promise<boolean> {
     } else {
       console.error("[agent] Error:", err);
       await writeState({ status: "error", next_action: "Check logs and retry" });
+    }
+    loopFinished = true;
+  } finally {
+    if (!loopFinished) {
+      const current = await readState();
+      if (current.status === "running") {
+        await writeState({
+          status: "error",
+          next_action: "Agent loop interrupted unexpectedly — restart from Tasks",
+        });
+      }
     }
   }
 

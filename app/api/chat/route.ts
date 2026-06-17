@@ -1,15 +1,19 @@
 import { NextResponse } from "next/server";
 import fs from "fs/promises";
 import { Agent, CursorAgentError } from "@cursor/sdk";
+import { buildChatPrompt, readLoopContext } from "@/agent/lib/chatContext";
+import { buildAgentOptions, buildSendOptions } from "@/agent/lib/sdkAgent";
 import { consumeSdkStream, logStreamEvent } from "@/agent/lib/streamLog";
 import {
   chatTranscriptPath,
   readChats,
   readConfig,
   readSecrets,
+  readState,
   readStreamEvents,
   REPO_ROOT,
   writeChats,
+  writeState,
 } from "@/agent/lib/state";
 
 function makeId() {
@@ -25,15 +29,17 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");
 
+  const loopContext = await readLoopContext();
+
   if (id) {
     const events = await readStreamEvents(chatTranscriptPath(id));
     const chats = await readChats();
     const session = chats.sessions.find((s) => s.id === id);
-    return NextResponse.json({ session, events });
+    return NextResponse.json({ session, events, loop: loopContext });
   }
 
   const chats = await readChats();
-  return NextResponse.json(chats);
+  return NextResponse.json({ ...chats, loop: loopContext });
 }
 
 export async function POST(request: Request) {
@@ -47,7 +53,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "API key not configured" }, { status: 400 });
   }
 
-  const config = await readConfig();
+  const [config, appState, loopContext] = await Promise.all([
+    readConfig(),
+    readState(),
+    readLoopContext(),
+  ]);
+
   const chats = await readChats();
   const now = new Date().toISOString();
 
@@ -78,19 +89,20 @@ export async function POST(request: Request) {
     { type: "user", text: prompt }
   );
 
+  const loopAgentId = appState.agent_id;
+  const resumeAgentId = loopAgentId ?? session.agent_id;
+  const fullPrompt = buildChatPrompt(prompt, loopContext);
+
   try {
-    const agent = session.agent_id
-      ? await Agent.resume(session.agent_id, {
-          apiKey: secrets.CURSOR_API_KEY,
-        })
-      : await Agent.create({
-          apiKey: secrets.CURSOR_API_KEY,
-          model: { id: config.model },
-          local: { cwd: REPO_ROOT },
-        });
+    const agentOpts = buildAgentOptions(secrets.CURSOR_API_KEY, config.model);
+    const sendOpts = buildSendOptions(config.model);
+
+    const agent = resumeAgentId
+      ? await Agent.resume(resumeAgentId, agentOpts)
+      : await Agent.create(agentOpts);
 
     try {
-      const run = await agent.send(prompt);
+      const run = await agent.send(fullPrompt, sendOpts);
       if (run.stream) {
         await consumeSdkStream(run.stream(), { source: "chat", chatId: session.id });
       }
@@ -99,7 +111,11 @@ export async function POST(request: Request) {
       const agentId =
         "agentId" in agent && typeof agent.agentId === "string"
           ? agent.agentId
-          : session.agent_id;
+          : resumeAgentId;
+
+      if (agentId) {
+        await writeState({ agent_id: agentId });
+      }
 
       const updated = await readChats();
       const idx = updated.sessions.findIndex((s) => s.id === session!.id);
@@ -121,6 +137,7 @@ export async function POST(request: Request) {
         chatId: session.id,
         status: result.status,
         agent_id: agentId,
+        loop: await readLoopContext(),
       });
     } catch (inner) {
       if (typeof agent[Symbol.asyncDispose] === "function") {

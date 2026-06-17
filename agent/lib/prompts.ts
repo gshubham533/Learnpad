@@ -43,7 +43,8 @@ Execute the task above. Before finishing:
 2. Append a summary to \`state/JOURNAL.md\`
 3. Write the next concrete task to \`state/NEXT_PROMPT.md\`
 4. If the dashboard needs new UI, append to \`state/ui-blocks.json\`
-5. If blocked, add to \`state/questions.json\` and set status to waiting_for_user
+5. If blocked, add to \`state/questions.json\` (with \`kind\`, \`context\`, \`unblocks\`, \`created_at\`), update \`state/agent-pause.json\`, and set status to \`waiting_for_user\` or \`error\` as appropriate
+6. Never leave \`status: "running"\` when your turn ends
 
 Do not stop idle. Always leave a concrete next task.`;
 }

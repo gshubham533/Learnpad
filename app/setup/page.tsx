@@ -1,18 +1,93 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input, Textarea } from "@/components/ui/input";
 
+type Step = "name" | "key" | "goal";
+
+function stepNumber(step: Step, hasKey: boolean): number {
+  if (step === "name") return 1;
+  if (step === "key") return 2;
+  return hasKey ? 2 : 3;
+}
+
+function totalSteps(hasKey: boolean): number {
+  return hasKey ? 2 : 3;
+}
+
 export default function SetupPage() {
   const router = useRouter();
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState<Step>("name");
+  const [hasKey, setHasKey] = useState(false);
+  const [initializing, setInitializing] = useState(true);
+  const [userName, setUserName] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [goal, setGoal] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const [secretRes, stateRes] = await Promise.all([
+          fetch("/api/secret"),
+          fetch("/api/state"),
+        ]);
+        const secrets = await secretRes.json();
+        const state = await stateRes.json();
+
+        const keyExists = Boolean(secrets.hasKey);
+        setHasKey(keyExists);
+
+        const name = state.user_name?.trim() ?? "";
+        const existingGoal = state.goal?.trim() ?? "";
+        if (name) setUserName(name);
+        if (existingGoal) setGoal(existingGoal);
+
+        if (!name) {
+          setStep("name");
+        } else if (!keyExists) {
+          setStep("key");
+        } else if (!existingGoal) {
+          setStep("goal");
+        } else {
+          router.replace("/");
+          return;
+        }
+      } catch {
+        toast.error("Failed to load setup status");
+      } finally {
+        setInitializing(false);
+      }
+    }
+
+    load();
+  }, [router]);
+
+  async function saveName() {
+    if (!userName.trim()) {
+      toast.error("Please enter your name");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch("/api/state", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_name: userName.trim() }),
+      });
+      if (!res.ok) throw new Error();
+      toast.success(`Nice to meet you, ${userName.trim()}!`);
+      setStep(hasKey ? "goal" : "key");
+    } catch {
+      toast.error("Failed to save name");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function saveKey() {
     if (!apiKey.trim()) {
@@ -27,8 +102,9 @@ export default function SetupPage() {
         body: JSON.stringify({ apiKey: apiKey.trim() }),
       });
       if (!res.ok) throw new Error();
+      setHasKey(true);
       toast.success("API key saved");
-      setStep(2);
+      setStep("goal");
     } catch {
       toast.error("Failed to save API key");
     } finally {
@@ -58,7 +134,7 @@ export default function SetupPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ goal: goal.trim() }),
       });
-      toast.success("Goal saved! Go to Dashboard and click Start.");
+      toast.success("You're all set! Start chatting on the home page.");
       router.push("/");
     } catch {
       toast.error("Failed to save goal");
@@ -67,19 +143,56 @@ export default function SetupPage() {
     }
   }
 
+  if (initializing) {
+    return <p className="text-muted-foreground">Loading setup…</p>;
+  }
+
   return (
     <div className="mx-auto max-w-lg space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Setup</h1>
-        <p className="text-muted-foreground">Step {step} of 2</p>
+        <p className="text-muted-foreground">
+          Step {stepNumber(step, hasKey)} of {totalSteps(hasKey)}
+        </p>
       </div>
 
-      {step === 1 && (
+      {step === "name" && (
+        <Card>
+          <CardHeader>
+            <CardTitle>What should we call you?</CardTitle>
+            <CardDescription>
+              We&apos;ll use this to greet you on the home page.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Input
+              placeholder="Your name"
+              value={userName}
+              onChange={(e) => setUserName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && saveName()}
+            />
+            <Button onClick={saveName} disabled={loading} className="w-full">
+              Continue
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {step === "key" && (
         <Card>
           <CardHeader>
             <CardTitle>Cursor API key</CardTitle>
             <CardDescription>
-              Get your key from Cursor Dashboard → Integrations → User API keys
+              Get your key from the{" "}
+              <a
+                href="https://cursor.com/dashboard/api?section=user-keys#user-api-keys"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-primary underline underline-offset-2 hover:opacity-90"
+              >
+                Cursor API keys page
+              </a>
+              , then paste it below.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -96,7 +209,7 @@ export default function SetupPage() {
         </Card>
       )}
 
-      {step === 2 && (
+      {step === "goal" && (
         <Card>
           <CardHeader>
             <CardTitle>What do you want to build or learn?</CardTitle>
@@ -105,6 +218,11 @@ export default function SetupPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {hasKey && (
+              <p className="rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+                Cursor API key is already configured — no need to enter it again.
+              </p>
+            )}
             <Textarea
               placeholder="e.g. A simple todo app to learn React…"
               value={goal}
@@ -112,7 +230,7 @@ export default function SetupPage() {
               rows={4}
             />
             <Button onClick={saveGoal} disabled={loading} className="w-full">
-              Save goal & go to Dashboard
+              Save goal & go to Home
             </Button>
           </CardContent>
         </Card>

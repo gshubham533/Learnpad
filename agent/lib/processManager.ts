@@ -2,9 +2,13 @@ import { spawn } from "child_process";
 import fs from "fs";
 import path from "path";
 import {
+  clearAgentPause,
   clearPid,
   clearStop,
+  isStaleNextAction,
   readPid,
+  readState,
+  refreshRunningTaskState,
   writePid,
   writeState,
   writeStop,
@@ -41,11 +45,17 @@ export async function startAgent(): Promise<{
 }> {
   const current = await getAgentStatus();
   if (current.status === "running" && current.pid) {
+    const state = await readState();
+    if (state.status === "error" || isStaleNextAction(state.next_action)) {
+      await clearAgentPause();
+      await refreshRunningTaskState();
+    }
     return { started: false, alreadyRunning: true, pid: current.pid };
   }
 
   await clearStop();
   await clearPid();
+  await clearAgentPause();
 
   const orchestratorPath = path.join(REPO_ROOT, "agent", "orchestrator.ts");
   const child = spawn(
@@ -66,7 +76,7 @@ export async function startAgent(): Promise<{
   }
 
   await writePid(child.pid);
-  await writeState({ status: "running" });
+  await refreshRunningTaskState();
 
   return { started: true, alreadyRunning: false, pid: child.pid };
 }

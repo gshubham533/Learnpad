@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { readQuestions, writeQuestions } from "@/agent/lib/state";
+import { clearAgentPause, readQuestions, writeQuestions, writeState } from "@/agent/lib/state";
 
 export async function GET() {
   const questions = await readQuestions();
@@ -23,11 +23,19 @@ export async function POST(request: Request) {
   const resolved = [...questions.resolved, item];
 
   const updated = await writeQuestions({ pending, resolved });
-  const { writeState } = await import("@/agent/lib/state");
-  await writeState({
-    questions_pending: pending.length > 0,
-    status: pending.length > 0 ? "waiting_for_user" : "idle",
-  });
+
+  if (pending.length === 0) {
+    await clearAgentPause();
+    await writeState({
+      questions_pending: false,
+      status: "idle",
+    });
+  } else {
+    await writeState({
+      questions_pending: true,
+      status: "waiting_for_user",
+    });
+  }
 
   return NextResponse.json(updated);
 }

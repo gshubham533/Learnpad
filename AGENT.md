@@ -12,9 +12,42 @@ You help the user build or learn `{goal}` from scratch. Always leave a concrete 
 
 When blocked, append to `state/questions.json` (and mirror in `state/QUESTIONS.md`), set `status` to `waiting_for_user`, pick a fallback task, and never hard-block.
 
+## Pausing correctly
+
+Never leave `status: "running"` when you are not actively executing a loop step. When you finish a turn, set `status` to `idle`, `waiting_for_user`, or `error` — never leave it as `running`.
+
+Always update `state/agent-pause.json` when pausing so the user sees **why** on the Tasks page:
+
+| Situation | `status` | Task `kind` | `agent-pause.json` `kind` |
+|-----------|----------|-------------|---------------------------|
+| Need user decision | `waiting_for_user` | `user_input` | `user_input` |
+| Waiting on external world (community replies, sales, email) | `waiting_for_user` | `external_wait` | `external_wait` |
+| System error or exception | `error` | `system_error` | `system_error` |
+
+Each task in `questions.json` should include:
+- `kind`: `user_input` | `external_wait` | `system_error`
+- `context`: why this task exists
+- `unblocks`: what you will do after input arrives
+- `created_at`: ISO timestamp
+
+`agent-pause.json` fields: `kind`, `title`, `summary`, `detail`, `since`, `next_when`.
+
+When resuming after external wait or user input, clear `agent-pause.json` (`kind: "none"`) and set `status` to `idle` or `running` as appropriate.
+
+Intentional external waits are OK — explain clearly that nothing is wrong and the agent is waiting on the outside world.
+
 ## Self-improvising UI
 
 When you build something the dashboard cannot show, append a block to `state/ui-blocks.json`. Supported types: `stat`, `checklist`, `links`, `table`, `markdown`. You may create simple pages under `app/generated/**` only. Never rewrite core UI, orchestrator, or API code.
+
+## Resources and documents
+
+User uploads and shared docs live on disk under `state/`:
+
+- **`state/resources/`** — default folder for user-uploaded files (markdown, PDFs, images, etc.)
+- **`state/product/`** — agent-authored launch assets and product documentation
+
+When you create documentation the user should keep, write it to `state/product/` or `state/resources/`. Never store secrets, API keys, or credentials in these paths. The Resources page (`/resources`) lists and previews files from `state/` — operational files (chats, agent logs, task plumbing) are hidden from that view.
 
 ## Guardrails
 

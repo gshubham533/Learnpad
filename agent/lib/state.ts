@@ -2,8 +2,10 @@ import fs from "fs/promises";
 import path from "path";
 import { PATHS, REPO_ROOT } from "./paths";
 import {
+  AgentPauseSchema,
   AppConfig,
   AppState,
+  AgentPause,
   ChatsSchema,
   ConfigSchema,
   Questions,
@@ -74,6 +76,28 @@ export async function writeQuestions(data: Questions) {
   return next;
 }
 
+export async function readAgentPause(): Promise<AgentPause> {
+  return readJsonFile(PATHS.agentPause, AgentPauseSchema, AgentPauseSchema.parse({}));
+}
+
+export async function writeAgentPause(partial: Partial<AgentPause>) {
+  const current = await readAgentPause();
+  const next = AgentPauseSchema.parse({ ...current, ...partial });
+  await writeJsonFile(PATHS.agentPause, next);
+  return next;
+}
+
+export async function clearAgentPause() {
+  return writeAgentPause({
+    kind: "none",
+    title: "",
+    summary: "",
+    detail: "",
+    since: "",
+    next_when: "",
+  });
+}
+
 async function syncQuestionsMd(data: Questions) {
   const lines = ["# Questions for the user", ""];
   if (data.pending.length === 0) {
@@ -126,6 +150,50 @@ export async function readNextPrompt(): Promise<string> {
   } catch {
     return "# Next Task\n\nRun setup wizard.\n";
   }
+}
+
+const STALE_NEXT_ACTION =
+  /restart from tasks|review error|stopped unexpectedly|interrupted unexpectedly|^fix:|check logs and retry/i;
+
+export function isStaleNextAction(action: string): boolean {
+  return STALE_NEXT_ACTION.test(action);
+}
+
+export async function summarizeNextPrompt(): Promise<string> {
+  const raw = await readNextPrompt();
+  for (const line of raw.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const cleaned = trimmed
+      .replace(/^\d+\.\s*/, "")
+      .replace(/^[-*]\s*/, "")
+      .replace(/`/g, "");
+    if (!cleaned) continue;
+    return cleaned.length > 120 ? `${cleaned.slice(0, 117)}…` : cleaned;
+  }
+  return "Continue with the next task";
+}
+
+export async function refreshRunningTaskState(): Promise<string> {
+  const summary = await summarizeNextPrompt();
+  await writeState({ status: "running", next_action: summary });
+  return summary;
+}
+
+const AUTO_RESTART_COOLDOWN_MS = 60_000;
+
+export async function canAutoRestart(): Promise<boolean> {
+  try {
+    const raw = await fs.readFile(PATHS.autoRestart, "utf-8");
+    const { at } = JSON.parse(raw) as { at: string };
+    return Date.now() - new Date(at).getTime() >= AUTO_RESTART_COOLDOWN_MS;
+  } catch {
+    return true;
+  }
+}
+
+export async function markAutoRestart() {
+  await writeJsonFile(PATHS.autoRestart, { at: new Date().toISOString() });
 }
 
 export async function writeNextPrompt(content: string) {
@@ -246,6 +314,50 @@ export async function clearPid() {
 
 export function chatTranscriptPath(chatId: string) {
   return path.join(PATHS.chatsDir, `${chatId}.jsonl`);
+}
+
+async function removePath(target: string) {
+  try {
+    await fs.rm(target, { recursive: true, force: true });
+  } catch {
+    // ignore
+  }
+}
+
+async function clearDirectory(dir: string) {
+  try {
+    const entries = await fs.readdir(dir, { withFileTypes: true });
+    await Promise.all(
+      entries.map((entry) =>
+        fs.rm(path.join(dir, entry.name), { recursive: true, force: true })
+      )
+    );
+  } catch {
+    // ignore missing directory
+  }
+}
+
+export async function resetAllData() {
+  const defaultState = StateSchema.parse({
+    updated_at: new Date().toISOString(),
+  });
+
+  await writeJsonFile(PATHS.stateJson, defaultState);
+  await writeQuestions({ pending: [], resolved: [] });
+  await writeJsonFile(PATHS.uiBlocks, { blocks: [] });
+  await writeChats({ sessions: [] });
+  await clearDirectory(PATHS.chatsDir);
+  await fs.writeFile(PATHS.journal, "# Learnpad Journal\n", "utf-8");
+  await writeNextPrompt("# Next Task\n\nRun setup wizard.\n");
+  await clearAgentPause();
+  await removePath(PATHS.live);
+  await removePath(PATHS.autoRestart);
+  await removePath(PATHS.profitPlan);
+  await clearDirectory(PATHS.product);
+  await clearDirectory(PATHS.resources);
+  await clearDirectory(PATHS.generated);
+  await clearPid();
+  await clearStop();
 }
 
 export { PATHS, REPO_ROOT };

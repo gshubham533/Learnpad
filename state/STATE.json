@@ -2,10 +2,11 @@
   "phase": "discover",
   "status": "idle",
   "goal": "",
+  "user_name": "",
   "agent_id": null,
-  "next_action": "Add API key in /setup",
+  "next_action": "Run setup wizard",
   "self_prompting": true,
   "questions_pending": false,
   "loop_count": 0,
-  "updated_at": "2026-06-17T08:06:16.988Z"
+  "updated_at": "2026-06-17T09:55:45.546Z"
 }

@@ -1,0 +1,75 @@
+import {
+  readJournal,
+  readNextPrompt,
+  readQuestions,
+  readState,
+} from "./state";
+import { getAgentStatus } from "./processManager";
+import type { LoopContext } from "./schemas";
+
+export type { LoopContext };
+
+export async function readLoopContext(): Promise<LoopContext> {
+  const [state, questions, journal, nextPrompt, process] = await Promise.all([
+    readState(),
+    readQuestions(),
+    readJournal(),
+    readNextPrompt(),
+    getAgentStatus(),
+  ]);
+
+  const journalLines = journal.split("\n").slice(-20).join("\n");
+
+  return {
+    goal: state.goal,
+    status: state.status,
+    phase: state.phase,
+    next_action: state.next_action,
+    next_prompt: nextPrompt,
+    loop_count: state.loop_count,
+    questions_pending: state.questions_pending || questions.pending.length > 0,
+    pending_tasks: questions.pending.map((q) => ({
+      id: q.id,
+      question: q.question,
+    })),
+    process_running: process.status === "running",
+    journal_excerpt: journalLines,
+  };
+}
+
+export function buildChatPrompt(userMessage: string, ctx: LoopContext): string {
+  const tasksBlock =
+    ctx.pending_tasks.length > 0
+      ? ctx.pending_tasks
+          .map((t) => `- ${t.id}: ${t.question}`)
+          .join("\n")
+      : "(none)";
+
+  const waitingNote =
+    ctx.status === "waiting_for_user" || ctx.pending_tasks.length > 0
+      ? `\nIMPORTANT: The build loop is waiting for the user. Tell them to open **Your tasks** at /tasks to answer. Include the link /tasks in your reply.`
+      : "";
+
+  return `[Learnpad — you are connected to the autonomous build loop. Answer the user about what the agent is doing, progress, blockers, and next steps. Use the context below. Be concise and friendly.${waitingNote}]
+
+## Loop context
+- Goal: ${ctx.goal || "(not set)"}
+- Status: ${ctx.status}
+- Phase: ${ctx.phase}
+- Process running: ${ctx.process_running ? "yes" : "no"}
+- Loop count: ${ctx.loop_count}
+- Next action: ${ctx.next_action}
+
+## Currently working on
+${ctx.next_prompt}
+
+## Pending user tasks (Your tasks page: /tasks)
+${tasksBlock}
+
+## Recent progress
+${ctx.journal_excerpt || "(nothing yet)"}
+
+---
+
+User: ${userMessage}`;
+}
